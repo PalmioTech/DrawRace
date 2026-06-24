@@ -227,7 +227,8 @@ export class Car {
       // Park spot: ON the track at the finish line, staggered per car so they
       // don't pile up — distinct lateral lane + a step back along the straight.
       this.finishDir = track.startDir;
-      const fwd = 18 - this.id * 26;
+      // A few px PAST the line, lightly staggered forward; lanes spread laterally.
+      const fwd = 26 + this.id * 8;
       const lat = (this.id - 1.5) * track.halfWidth * 0.5;
       this.finishTarget = add(
         track.startPos,
