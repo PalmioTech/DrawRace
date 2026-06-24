@@ -1,24 +1,24 @@
 /**
- * Race sidebar (left): big race timer, lap counter and the live standings —
- * position, car color, label and status (current lap / finish time / eliminato),
- * re-sorted every frame.
+ * Race HUD: a compact, semi-transparent overlay (top-left) floating over the
+ * full-screen track — race timer, lap counter and live standings (position,
+ * car color, label, status), re-sorted every frame.
  */
 import Phaser from 'phaser';
 import type { RaceEngine } from '../core/RaceEngine';
-import { COLORS, DESIGN, LAPS, SIDEBAR_W } from '../config/constants';
+import { COLORS, LAPS, SIDEBAR_W } from '../config/constants';
 import { glow, hex, displayStyle, bodyStyle } from './theme';
 
 interface Row {
-  bg: Phaser.GameObjects.Graphics;
   dot: Phaser.GameObjects.Arc;
   pos: Phaser.GameObjects.Text;
   label: Phaser.GameObjects.Text;
   status: Phaser.GameObjects.Text;
 }
 
-const PAD = 16;
-const ROW_TOP = 250;
-const ROW_H = 64;
+const X = 16;
+const Y = 14;
+const W = SIDEBAR_W;
+const ROW_H = 40;
 
 export class Hud {
   private timeText: Phaser.GameObjects.Text;
@@ -26,62 +26,53 @@ export class Hud {
   private rows: Row[] = [];
 
   constructor(scene: Phaser.Scene, carCount: number) {
-    const w = SIDEBAR_W;
+    const headH = 78;
+    const h = headH + 30 + carCount * ROW_H;
 
-    // Sidebar panel.
+    // Semi-transparent floating panel.
     const panel = scene.add.graphics().setDepth(98);
-    panel.fillStyle(COLORS.panel, 0.82);
-    panel.fillRect(0, 0, w, DESIGN.height);
-    panel.lineStyle(2, COLORS.panelBorder, 0.9);
-    panel.beginPath();
-    panel.moveTo(w, 0);
-    panel.lineTo(w, DESIGN.height);
-    panel.strokePath();
+    panel.fillStyle(COLORS.bg, 0.62);
+    panel.fillRoundedRect(X, Y, W, h, 16);
+    panel.lineStyle(2, COLORS.panelBorder, 0.85);
+    panel.strokeRoundedRect(X, Y, W, h, 16);
 
-    const cx = w / 2;
     scene.add
-      .text(cx, 28, 'TEMPO', bodyStyle(16, COLORS.textDim, '700'))
-      .setOrigin(0.5, 0)
+      .text(X + 18, Y + 14, 'TEMPO', bodyStyle(15, COLORS.textDim, '700'))
       .setDepth(100)
-      .setLetterSpacing?.(4);
-
+      .setLetterSpacing?.(3);
     this.timeText = scene.add
-      .text(cx, 50, '0.00', displayStyle(52, COLORS.textPrimary, '700'))
-      .setOrigin(0.5, 0)
+      .text(X + 16, Y + 26, '0.00', displayStyle(40, COLORS.textPrimary, '700'))
       .setDepth(100);
-    glow(this.timeText, COLORS.trackBorder, 0.8);
+    glow(this.timeText, COLORS.trackBorder, 0.7);
 
     this.lapText = scene.add
-      .text(cx, 120, `GIRO 1/${LAPS}`, bodyStyle(22, COLORS.trackBorder, '700'))
-      .setOrigin(0.5, 0)
+      .text(X + W - 18, Y + 40, `GIRO 1/${LAPS}`, bodyStyle(20, COLORS.trackBorder, '700'))
+      .setOrigin(1, 0.5)
       .setDepth(100);
-    this.lapText.setLetterSpacing?.(2);
+    this.lapText.setLetterSpacing?.(1);
 
+    const listTop = Y + headH + 8;
     scene.add
-      .text(PAD, ROW_TOP - 38, 'CLASSIFICA', bodyStyle(18, COLORS.textDim, '700'))
-      .setOrigin(0, 0.5)
+      .text(X + 18, listTop, 'CLASSIFICA', bodyStyle(14, COLORS.textDim, '700'))
       .setDepth(100)
       .setLetterSpacing?.(3);
 
     for (let i = 0; i < carCount; i++) {
-      const y = ROW_TOP + i * ROW_H;
-      const bg = scene.add.graphics().setDepth(99);
-      bg.fillStyle(COLORS.bgBottom, 0.5);
-      bg.fillRoundedRect(PAD - 6, y - ROW_H / 2 + 6, w - 2 * PAD + 12, ROW_H - 12, 10);
-      const dot = scene.add.circle(PAD + 14, y, 9, 0xffffff).setDepth(100);
+      const y = listTop + 28 + i * ROW_H;
+      const dot = scene.add.circle(X + 22, y, 8, 0xffffff).setDepth(100);
       const pos = scene.add
-        .text(PAD + 34, y, '', displayStyle(24, COLORS.textPrimary, '700'))
+        .text(X + 40, y, '', displayStyle(20, COLORS.textPrimary, '700'))
         .setOrigin(0, 0.5)
         .setDepth(100);
       const label = scene.add
-        .text(PAD + 70, y, '', bodyStyle(24, COLORS.textPrimary, '700'))
+        .text(X + 70, y, '', bodyStyle(21, COLORS.textPrimary, '700'))
         .setOrigin(0, 0.5)
         .setDepth(100);
       const status = scene.add
-        .text(w - PAD, y, '', bodyStyle(20, COLORS.textDim, '600'))
+        .text(X + W - 16, y, '', bodyStyle(18, COLORS.textDim, '600'))
         .setOrigin(1, 0.5)
         .setDepth(100);
-      this.rows.push({ bg, dot, pos, label, status });
+      this.rows.push({ dot, pos, label, status });
     }
   }
 
@@ -97,7 +88,7 @@ export class Hud {
       if (!row) return;
       const c = entry.car;
       const status = c.eliminated
-        ? 'ELIMINATO'
+        ? 'OUT'
         : c.finished
           ? c.finishTime.toFixed(2) + 's'
           : `giro ${c.displayLap(LAPS)}`;

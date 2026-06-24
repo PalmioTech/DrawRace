@@ -18,19 +18,20 @@ export const DESIGN = {
 /** Number of laps the player must draw (baked into the trajectory). */
 export const LAPS = 3;
 
-/** Left sidebar (live times + standings) width. */
-export const SIDEBAR_W = 296;
+/** Floating HUD overlay (live times + standings) width. */
+export const SIDEBAR_W = 268;
 
 /**
- * Play area the track is fitted into — almost full screen, right of the sidebar.
- * Track geometry is scaled to fill this in Track's constructor, so draw input
- * and race rendering share the same big map.
+ * Play area the track is fitted into — FULL screen. The HUD floats on top as a
+ * semi-transparent overlay (top-left), like an arcade racer. Track geometry is
+ * scaled to fill this in Track's constructor, so draw input and race rendering
+ * share the same big map.
  */
 export const PLAY_AREA = {
-  x: SIDEBAR_W + 10,
-  y: 12,
-  w: 1280 - (SIDEBAR_W + 10) - 14,
-  h: 720 - 24,
+  x: 6,
+  y: 6,
+  w: 1280 - 12,
+  h: 720 - 12,
 } as const;
 
 /** Physics simulation step. Fixed timestep → deterministic, stable feel. */
@@ -62,11 +63,11 @@ export const CAR = {
    */
   slideGain: 0.3,
   /** How fast the slide offset eases toward its target (per-second rate). */
-  slideEase: 7,
+  slideEase: 5,
   /** Max lateral slide offset (px) — big overcooks can drift right off the track. */
   maxSlide: 95,
   /** Low-pass factor for the rendered position (0..1 per tick). Lower = smoother. */
-  renderSmooth: 0.3,
+  renderSmooth: 0.22,
   /** Speed multiplier while off the track surface (grass/sand). */
   offTrackGrip: 0.6,
   /** Number of off-track excursions before a car is eliminated. */
@@ -108,8 +109,8 @@ export const STAT_SCALING = {
 export const DRAW = {
   speedGain: 0.62,
   /** Moving-average window (samples) to smooth jittery finger speed.
-   * Small = the car tracks fast/slow finger changes faithfully (more precise). */
-  smoothWindow: 4,
+   * Balanced: responsive to deliberate fast/slow, but not stuttery on touch noise. */
+  smoothWindow: 7,
   /** Min total drawn length (px) for a stroke to be considered valid. */
   minStrokeLength: 400,
   /** Comet fade: how many recent raw segments stay visible while drawing. */
@@ -119,9 +120,9 @@ export const DRAW = {
 /** Extra geometry smoothing passes for the drawn line (kills jitter). */
 export const SMOOTH = {
   /** Moving-average window (points) applied to the resampled path positions. */
-  pathWindow: 3,
-  /** Moving-average window (points) applied to curvature. */
-  curvatureWindow: 5,
+  pathWindow: 4,
+  /** Moving-average window (points) applied to curvature (stable cornerMax → no slide pulsing). */
+  curvatureWindow: 8,
 } as const;
 
 /** Neon theme palette (0xRRGGBB). */
