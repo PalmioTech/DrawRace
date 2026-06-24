@@ -135,8 +135,8 @@ export const COLORS = {
   textMid: 0xb4bce0,
   textDim: 0x8a90b8,
   accent: 0xff2e97,
-  /** Per-car neon colors (up to 4 cars in the MVP). */
-  cars: [0x2de2e6, 0xff2e97, 0xffe600, 0x7cff6b] as number[],
+  /** Per-car colors — matched to the car sprites (yellow, green, blue, red). */
+  cars: [0xffe600, 0x6cff5a, 0x3a86ff, 0xff3b3b] as number[],
   /** Draw-line speed gradient endpoints (slow → fast). */
   drawSlow: 0xff2e97,
   drawFast: 0x2de2e6,
@@ -169,3 +169,9 @@ export const STAT_COLORS: Record<string, number> = {
 };
 
 export const CAR_LABELS = ['P1', 'P2', 'P3', 'P4'] as const;
+
+/** Car sprite texture keys, aligned to COLORS.cars order. */
+export const CAR_TEXTURES = ['car-yellow', 'car-green', 'car-blue', 'car-red'] as const;
+
+/** On-track car sprite length (px); width derives from the texture aspect. */
+export const CAR_SPRITE_LEN = 58;

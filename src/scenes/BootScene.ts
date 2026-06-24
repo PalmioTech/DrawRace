@@ -10,6 +10,13 @@ export class BootScene extends Phaser.Scene {
     super('Boot');
   }
 
+  preload(): void {
+    this.load.image('car-yellow', 'assets/cars/car-yellow.png');
+    this.load.image('car-green', 'assets/cars/car-green.png');
+    this.load.image('car-blue', 'assets/cars/car-blue.png');
+    this.load.image('car-red', 'assets/cars/car-red.png');
+  }
+
   async create(): Promise<void> {
     // Wait for the web fonts so text renders in Orbitron/Rajdhani — but never
     // block boot more than a moment (offline / slow CDN falls back gracefully).

@@ -4,7 +4,7 @@
  * the cars replay their drawn (or AI) trajectories for all LAPS laps.
  */
 import Phaser from 'phaser';
-import { COLORS, DESIGN, LAPS, CAR } from '../config/constants';
+import { COLORS, DESIGN, LAPS, CAR_TEXTURES, CAR_SPRITE_LEN } from '../config/constants';
 import type { RaceConfig, Vec2 } from '../core/types';
 import type { Track } from '../core/Track';
 import type { Car } from '../core/CarSim';
@@ -26,6 +26,7 @@ export class RaceScene extends Phaser.Scene {
   private engine!: RaceEngine;
   private hud!: Hud;
   private carsG!: Phaser.GameObjects.Graphics;
+  private sprites = new Map<number, Phaser.GameObjects.Image>();
   private trails = new Map<number, Vec2[]>();
   private eliminatedShown = new Set<number>();
   private started = false;
@@ -50,12 +51,20 @@ export class RaceScene extends Phaser.Scene {
     this.done = false;
     this.trails.clear();
     this.eliminatedShown.clear();
+    this.sprites.clear();
 
     const g = this.add.graphics();
     drawTrack(g, track);
 
     this.carsG = this.add.graphics().setDepth(20);
-    cars.forEach((c) => this.trails.set(c.id, []));
+    cars.forEach((c) => {
+      this.trails.set(c.id, []);
+      // Car sprite, scaled to the on-track length (width from the texture aspect).
+      const tex = CAR_TEXTURES[c.id % CAR_TEXTURES.length];
+      const img = this.add.image(c.pos.x, c.pos.y, tex).setDepth(25);
+      img.setDisplaySize(CAR_SPRITE_LEN * (img.width / img.height), CAR_SPRITE_LEN);
+      this.sprites.set(c.id, img);
+    });
 
     this.hud = new Hud(this, cars.length);
     this.hud.update(this.engine); // show the starting grid before the countdown
@@ -109,8 +118,10 @@ export class RaceScene extends Phaser.Scene {
     const g = this.carsG;
     g.clear();
     for (const car of this.payload.cars) {
+      const sprite = this.sprites.get(car.id);
       // Eliminated: car is removed from the track. Flash "ELIMINATO" once.
       if (car.eliminated) {
+        sprite?.setVisible(false);
         if (!this.eliminatedShown.has(car.id)) {
           this.eliminatedShown.add(car.id);
           this.flashEliminated(car.pos.x, car.pos.y, car.color);
@@ -123,39 +134,33 @@ export class RaceScene extends Phaser.Scene {
         if (hist.length > TRAIL) hist.shift();
       }
 
-      // Neon trail (fading).
+      // Neon trail (fading), in the car's color.
       for (let i = 1; i < hist.length; i++) {
-        g.lineStyle(6, car.color, (i / hist.length) * 0.5);
+        g.lineStyle(7, car.color, (i / hist.length) * 0.45);
         g.beginPath();
         g.moveTo(hist[i - 1].x, hist[i - 1].y);
         g.lineTo(hist[i].x, hist[i].y);
         g.strokePath();
       }
 
-      // Slide / off-track spark ring.
+      // Slide / off-track spark ring under the car.
       if (car.sliding || car.offTrack) {
-        g.fillStyle(car.offTrack ? COLORS.accent : 0xffffff, 0.5);
-        g.fillCircle(car.pos.x, car.pos.y, CAR.radius + 6);
+        g.fillStyle(car.offTrack ? COLORS.accent : 0xffffff, 0.4);
+        g.fillCircle(car.pos.x, car.pos.y, CAR_SPRITE_LEN * 0.5 + 4);
       }
 
-      // Car body.
-      g.fillStyle(car.color, 1);
-      g.fillCircle(car.pos.x, car.pos.y, CAR.radius);
-      g.lineStyle(2, 0xffffff, 0.8);
-      g.strokeCircle(car.pos.x, car.pos.y, CAR.radius);
-
-      // Heading tick.
-      g.lineStyle(3, 0xffffff, 0.9);
-      g.beginPath();
-      g.moveTo(car.pos.x, car.pos.y);
-      g.lineTo(car.pos.x + car.dir.x * CAR.radius, car.pos.y + car.dir.y * CAR.radius);
-      g.strokePath();
+      // Car sprite: follow position, rotate to heading (sprite art faces up).
+      if (sprite) {
+        sprite.setVisible(true);
+        sprite.setPosition(car.pos.x, car.pos.y);
+        sprite.setRotation(Math.atan2(car.dir.y, car.dir.x) + Math.PI / 2);
+      }
     }
   }
 
   /** One-shot "ELIMINATO" burst where a car left the race. */
   private flashEliminated(x: number, y: number, color: number): void {
-    const burst = this.add.circle(x, y, CAR.radius + 4, color, 0.9).setDepth(80);
+    const burst = this.add.circle(x, y, CAR_SPRITE_LEN * 0.5, color, 0.9).setDepth(80);
     this.tweens.add({ targets: burst, scale: 2.4, alpha: 0, duration: 450, onComplete: () => burst.destroy() });
     const label = this.add
       .text(x, y - 24, 'ELIMINATO', bodyStyle(22, COLORS.accent, '700'))
