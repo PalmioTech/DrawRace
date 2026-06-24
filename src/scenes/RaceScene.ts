@@ -11,8 +11,7 @@ import type { Car } from '../core/CarSim';
 import { RaceEngine } from '../core/RaceEngine';
 import { drawTrack } from '../ui/TrackView';
 import { Hud } from '../ui/Hud';
-
-const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
+import { displayStyle, bodyStyle, glow, hex } from '../ui/theme';
 const TRAIL = 14;
 
 interface RaceData {
@@ -68,13 +67,10 @@ export class RaceScene extends Phaser.Scene {
     const cx = DESIGN.width / 2;
     const cy = DESIGN.height / 2;
     const label = this.add
-      .text(cx, cy, '3', {
-        fontFamily: 'monospace',
-        fontSize: '120px',
-        color: hex(COLORS.textPrimary),
-      })
+      .text(cx, cy, '3', displayStyle(140, COLORS.textPrimary, '900'))
       .setOrigin(0.5)
       .setDepth(200);
+    glow(label, COLORS.trackBorder, 1.6);
 
     const seq = ['3', '2', '1', 'GO'];
     let i = 0;
@@ -161,14 +157,10 @@ export class RaceScene extends Phaser.Scene {
     const burst = this.add.circle(x, y, CAR.radius + 4, color, 0.9).setDepth(80);
     this.tweens.add({ targets: burst, scale: 2.4, alpha: 0, duration: 450, onComplete: () => burst.destroy() });
     const label = this.add
-      .text(x, y - 24, 'ELIMINATO', {
-        fontFamily: 'monospace',
-        fontSize: '20px',
-        color: hex(COLORS.accent),
-        fontStyle: 'bold',
-      })
+      .text(x, y - 24, 'ELIMINATO', bodyStyle(22, COLORS.accent, '700'))
       .setOrigin(0.5)
       .setDepth(81);
+    glow(label, COLORS.accent, 1);
     this.tweens.add({ targets: label, y: y - 60, alpha: 0, duration: 1100, onComplete: () => label.destroy() });
   }
 

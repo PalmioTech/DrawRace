@@ -119,6 +119,32 @@ export const COLORS = {
   /** Draw-line speed gradient endpoints (slow → fast). */
   drawSlow: 0xff2e97,
   drawFast: 0x2de2e6,
+  // --- UI chrome ---
+  /** Background gradient stops (top → bottom). */
+  bgTop: 0x0a0e24,
+  bgBottom: 0x04050d,
+  /** Faint background grid lines. */
+  grid: 0x1b2142,
+  /** Panel / card fill + border. */
+  panel: 0x0e1230,
+  panelBorder: 0x2b3566,
+  /** Secondary accent (violet) for variety. */
+  violet: 0x8b5cf6,
 } as const;
+
+/** UI fonts loaded in index.html. */
+export const FONT = {
+  display: 'Orbitron',
+  body: 'Rajdhani',
+} as const;
+
+/** Per-stat accent colors (setup UI), keyed in STAT_KEYS order. */
+export const STAT_COLORS: Record<string, number> = {
+  grip: 0x2de2e6,
+  speed: 0xffe600,
+  brake: 0xff2e97,
+  accel: 0x7cff6b,
+  offroad: 0x8b5cf6,
+};
 
 export const CAR_LABELS = ['P1', 'P2', 'P3', 'P4'] as const;

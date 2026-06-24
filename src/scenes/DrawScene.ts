@@ -16,8 +16,7 @@ import { resolveStats, aiLoadout } from '../core/CarStats';
 import { Car } from '../core/CarSim';
 import { drawTrack } from '../ui/TrackView';
 import { makeButton, type Button } from '../ui/Button';
-
-const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
+import { displayStyle, bodyStyle, glow, hex } from '../ui/theme';
 const lerpColor = (a: number, b: number, t: number) =>
   Phaser.Display.Color.Interpolate.ColorWithColor(
     Phaser.Display.Color.IntegerToColor(a),
@@ -74,19 +73,12 @@ export class DrawScene extends Phaser.Scene {
     void dot;
 
     this.title = this.add
-      .text(DESIGN.width / 2, 28, '', {
-        fontFamily: 'monospace',
-        fontSize: '30px',
-        color: hex(COLORS.textPrimary),
-      })
+      .text(DESIGN.width / 2, 22, '', displayStyle(30, COLORS.textPrimary, '700'))
       .setOrigin(0.5, 0)
       .setDepth(50);
+    glow(this.title, COLORS.trackBorder, 0.8);
     this.hint = this.add
-      .text(DESIGN.width / 2, 70, '', {
-        fontFamily: 'monospace',
-        fontSize: '20px',
-        color: hex(COLORS.textDim),
-      })
+      .text(DESIGN.width / 2, 66, '', bodyStyle(20, COLORS.textDim, '600'))
       .setOrigin(0.5, 0)
       .setDepth(50);
 

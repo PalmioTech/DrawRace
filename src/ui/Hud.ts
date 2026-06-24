@@ -5,8 +5,7 @@
 import Phaser from 'phaser';
 import type { RaceEngine } from '../core/RaceEngine';
 import { COLORS, DESIGN, LAPS } from '../config/constants';
-
-const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
+import { glow, hex, displayStyle, bodyStyle } from './theme';
 
 export class Hud {
   private timeText: Phaser.GameObjects.Text;
@@ -14,33 +13,28 @@ export class Hud {
   private rankTexts: Phaser.GameObjects.Text[] = [];
 
   constructor(scene: Phaser.Scene, carCount: number) {
+    // Ranking panel (top-left).
+    const panel = scene.add.graphics().setDepth(99);
+    panel.fillStyle(COLORS.panel, 0.6);
+    panel.fillRoundedRect(14, 120, 240, 24 + carCount * 30, 12);
+    panel.lineStyle(1.5, COLORS.panelBorder, 0.7);
+    panel.strokeRoundedRect(14, 120, 240, 24 + carCount * 30, 12);
+
     this.timeText = scene.add
-      .text(DESIGN.width / 2, 30, '0.00', {
-        fontFamily: 'monospace',
-        fontSize: '40px',
-        color: hex(COLORS.textPrimary),
-      })
+      .text(DESIGN.width / 2, 24, '0.00', displayStyle(44, COLORS.textPrimary, '700'))
       .setOrigin(0.5, 0)
       .setDepth(100);
+    glow(this.timeText, COLORS.trackBorder, 0.8);
 
     this.lapText = scene.add
-      .text(DESIGN.width / 2, 80, `LAP 1/${LAPS}`, {
-        fontFamily: 'monospace',
-        fontSize: '22px',
-        color: hex(COLORS.textDim),
-      })
+      .text(DESIGN.width / 2, 78, `LAP 1/${LAPS}`, bodyStyle(22, COLORS.textDim, '700'))
       .setOrigin(0.5, 0)
       .setDepth(100);
+    this.lapText.setLetterSpacing?.(2);
 
     for (let i = 0; i < carCount; i++) {
       this.rankTexts.push(
-        scene.add
-          .text(18, 130 + i * 30, '', {
-            fontFamily: 'monospace',
-            fontSize: '22px',
-            color: hex(COLORS.textPrimary),
-          })
-          .setDepth(100),
+        scene.add.text(30, 134 + i * 30, '', bodyStyle(20, COLORS.textPrimary, '600')).setDepth(100),
       );
     }
   }

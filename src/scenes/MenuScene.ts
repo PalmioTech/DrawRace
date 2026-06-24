@@ -6,10 +6,9 @@ import Phaser from 'phaser';
 import { COLORS, DESIGN, LAPS } from '../config/constants';
 import type { Difficulty, GameMode, RaceConfig, RaceBuild } from '../core/types';
 import { makeButton, type Button } from '../ui/Button';
+import { addBackground, displayStyle, bodyStyle, glow } from '../ui/theme';
 import { save } from '../data/SaveManager';
 import { NEON_LOOP } from '../data/tracks';
-
-const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
 
 export class MenuScene extends Phaser.Scene {
   private mode: GameMode = 'ai';
@@ -27,31 +26,24 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     const cx = DESIGN.width / 2;
+    addBackground(this);
+
+    const title = this.add
+      .text(cx, 58, 'PROJECT RACING', displayStyle(54, COLORS.trackBorder, '900'))
+      .setOrigin(0.5);
+    title.setLetterSpacing?.(6);
+    glow(title, COLORS.trackBorder, 1.4);
 
     this.add
-      .text(cx, 56, 'PROJECT RACING', {
-        fontFamily: 'monospace',
-        fontSize: '46px',
-        color: hex(COLORS.trackBorder),
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(cx, 100, 'draw your line · race it', {
-        fontFamily: 'monospace',
-        fontSize: '20px',
-        color: hex(COLORS.textDim),
-      })
-      .setOrigin(0.5);
+      .text(cx, 104, 'DRAW YOUR LINE · RACE IT', bodyStyle(20, COLORS.textDim, '600'))
+      .setOrigin(0.5)
+      .setLetterSpacing?.(4);
 
     const best = save.getBestTime(NEON_LOOP.id);
-    this.add
-      .text(cx, 132, best ? `best: ${best.toFixed(2)}s` : 'no record yet', {
-        fontFamily: 'monospace',
-        fontSize: '18px',
-        color: hex(COLORS.accent),
-      })
+    const bestText = this.add
+      .text(cx, 138, best ? `BEST ${best.toFixed(2)}s` : 'NO RECORD YET', bodyStyle(18, COLORS.accent, '700'))
       .setOrigin(0.5);
+    bestText.setLetterSpacing?.(2);
 
     // --- Mode ---------------------------------------------------------------
     this.section(cx, 180, 'MODE');
@@ -77,24 +69,17 @@ export class MenuScene extends Phaser.Scene {
     makeButton(this, cx, 580, 380, 86, 'START', () => this.start(), COLORS.accent);
 
     this.add
-      .text(cx, 668, `draw ${LAPS} laps with your finger`, {
-        fontFamily: 'monospace',
-        fontSize: '18px',
-        color: hex(COLORS.textDim),
-      })
-      .setOrigin(0.5);
+      .text(cx, 672, `DRAW ${LAPS} LAPS WITH YOUR FINGER`, bodyStyle(17, COLORS.textDim, '500'))
+      .setOrigin(0.5)
+      .setLetterSpacing?.(2);
 
     this.refresh();
   }
 
   private section(cx: number, y: number, label: string): Phaser.GameObjects.Text {
-    return this.add
-      .text(cx, y, label, {
-        fontFamily: 'monospace',
-        fontSize: '20px',
-        color: hex(COLORS.textDim),
-      })
-      .setOrigin(0.5);
+    const t = this.add.text(cx, y, label, bodyStyle(18, COLORS.textDim, '700')).setOrigin(0.5);
+    t.setLetterSpacing?.(4);
+    return t;
   }
 
   private setMode(m: GameMode): void {

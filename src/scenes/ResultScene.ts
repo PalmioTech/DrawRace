@@ -4,11 +4,10 @@
  */
 import Phaser from 'phaser';
 import { COLORS, DESIGN } from '../config/constants';
-import type { RaceConfig, RacerKind } from '../core/types';
+import type { RaceConfig, RacerKind, RaceBuild } from '../core/types';
 import { makeButton } from '../ui/Button';
+import { addBackground, displayStyle, bodyStyle, glow } from '../ui/theme';
 import { save } from '../data/SaveManager';
-
-const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
 
 interface ResultRow {
   label: string;
@@ -39,72 +38,85 @@ export class ResultScene extends Phaser.Scene {
 
   create(): void {
     const cx = DESIGN.width / 2;
+    addBackground(this);
     const { results, humanBest, trackId } = this.payload;
 
     const newRecord = humanBest > 0 ? save.recordTime(trackId, humanBest) : false;
     const playerWon = results.find((r) => r.kind === 'human')?.position === 1;
 
-    this.add
-      .text(cx, 120, playerWon ? 'YOU WIN' : 'FINISH', {
-        fontFamily: 'monospace',
-        fontSize: '52px',
-        color: hex(playerWon ? COLORS.trackBorder : COLORS.textPrimary),
-        fontStyle: 'bold',
-      })
+    const title = this.add
+      .text(cx, 70, playerWon ? 'YOU WIN' : 'FINISH', displayStyle(58, playerWon ? COLORS.trackBorder : COLORS.textPrimary, '900'))
       .setOrigin(0.5);
+    title.setLetterSpacing?.(4);
+    glow(title, playerWon ? COLORS.trackBorder : COLORS.violet, 1.4);
 
     if (newRecord) {
-      this.add
-        .text(cx, 175, '★ NEW RECORD ★', {
-          fontFamily: 'monospace',
-          fontSize: '24px',
-          color: hex(COLORS.accent),
-        })
+      const rec = this.add
+        .text(cx, 120, '★ NEW RECORD ★', bodyStyle(24, COLORS.accent, '700'))
         .setOrigin(0.5);
+      rec.setLetterSpacing?.(3);
+      glow(rec, COLORS.accent, 1);
     }
 
-    // Ranking table.
+    // Ranking rows in a panel.
+    const rowH = 56;
+    const top = 168;
+    const panelW = 560;
+    const panel = this.add.graphics().setDepth(1);
+    panel.fillStyle(COLORS.panel, 0.7);
+    panel.fillRoundedRect(cx - panelW / 2, top - 14, panelW, results.length * rowH + 20, 16);
+    panel.lineStyle(1.5, COLORS.panelBorder, 0.8);
+    panel.strokeRoundedRect(cx - panelW / 2, top - 14, panelW, results.length * rowH + 20, 16);
+
     results.forEach((r, i) => {
-      const y = 260 + i * 60;
+      const y = top + 14 + i * rowH;
+      if (i > 0) {
+        panel.lineStyle(1, COLORS.panelBorder, 0.4);
+        panel.beginPath();
+        panel.moveTo(cx - panelW / 2 + 20, y - rowH / 2);
+        panel.lineTo(cx + panelW / 2 - 20, y - rowH / 2);
+        panel.strokePath();
+      }
       this.add
-        .text(cx - 200, y, `${r.position}.  ${r.label}`, {
-          fontFamily: 'monospace',
-          fontSize: '30px',
-          color: hex(r.color),
-        })
+        .text(cx - panelW / 2 + 28, y, `${r.position}`, displayStyle(26, r.color, '700'))
         .setOrigin(0, 0.5);
       this.add
-        .text(cx + 200, y, r.eliminated ? 'ELIMINATO' : `${r.finishTime.toFixed(2)}s`, {
-          fontFamily: 'monospace',
-          fontSize: r.eliminated ? '22px' : '30px',
-          color: hex(r.eliminated ? COLORS.accent : COLORS.textPrimary),
-        })
+        .text(cx - panelW / 2 + 76, y, r.label, bodyStyle(26, COLORS.textPrimary, '700'))
+        .setOrigin(0, 0.5);
+      this.add
+        .text(
+          cx + panelW / 2 - 28,
+          y,
+          r.eliminated ? 'ELIMINATO' : `${r.finishTime.toFixed(2)}s`,
+          bodyStyle(r.eliminated ? 22 : 26, r.eliminated ? COLORS.accent : COLORS.textPrimary, '600'),
+        )
         .setOrigin(1, 0.5);
     });
 
     const best = save.getBestTime(trackId);
     if (best) {
       this.add
-        .text(cx, 260 + results.length * 60 + 30, `track best: ${best.toFixed(2)}s`, {
-          fontFamily: 'monospace',
-          fontSize: '20px',
-          color: hex(COLORS.textDim),
-        })
-        .setOrigin(0.5);
+        .text(cx, top + results.length * rowH + 26, `TRACK BEST  ${best.toFixed(2)}s`, bodyStyle(18, COLORS.textDim, '600'))
+        .setOrigin(0.5)
+        .setLetterSpacing?.(2);
     }
 
-    makeButton(this, cx - 110, DESIGN.height - 120, 200, 90, 'RACE AGAIN', () =>
-      this.scene.start('Draw', { config: this.payload.config }),
-    );
-    makeButton(
-      this,
-      cx + 110,
-      DESIGN.height - 120,
-      200,
-      90,
-      'MENU',
-      () => this.scene.start('Menu'),
-      COLORS.accent,
-    );
+    makeButton(this, cx - 130, DESIGN.height - 64, 230, 84, 'RACE AGAIN', () => this.raceAgain());
+    makeButton(this, cx + 130, DESIGN.height - 64, 230, 84, 'MENU', () => this.scene.start('Menu'), COLORS.accent);
+  }
+
+  /** Replay: reset the shared build and run the setup→draw flow again. */
+  private raceAgain(): void {
+    const config = this.payload.config;
+    const humanCount = config.mode === 'hotseat' ? config.carCount : 1;
+    const build: RaceBuild = {
+      config,
+      humanCount,
+      humanLoadouts: [],
+      humanTrajectories: [],
+      currentHuman: 0,
+    };
+    this.registry.set('raceBuild', build);
+    this.scene.start('Setup');
   }
 }

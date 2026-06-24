@@ -5,13 +5,12 @@
  * Flow: Menu → [Setup → Draw] per human → Race. State lives in the registry.
  */
 import Phaser from 'phaser';
-import { COLORS, DESIGN, SETUP } from '../config/constants';
+import { COLORS, DESIGN, SETUP, STAT_COLORS } from '../config/constants';
 import type { Loadout, RaceBuild, StatKey } from '../core/types';
 import { STAT_KEYS, STAT_LABELS, defaultLoadout, loadoutTotal } from '../core/CarStats';
 import { makeButton } from '../ui/Button';
+import { addBackground, displayStyle, bodyStyle, glow } from '../ui/theme';
 import { save } from '../data/SaveManager';
-
-const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
 
 /** Short one-liners shown under each stat. */
 const STAT_HINTS: Record<StatKey, string> = {
@@ -22,12 +21,20 @@ const STAT_HINTS: Record<StatKey, string> = {
   offroad: 'tollera piu uscite di pista',
 };
 
+const ROW_Y = (i: number) => 168 + i * 96;
+const CARD_X = 150;
+const CARD_W = DESIGN.width - 300;
+const SEG_X = [806, 866, 926];
+const SEG_W = 46;
+const SEG_H = 30;
+
 export class SetupScene extends Phaser.Scene {
   private build!: RaceBuild;
   private loadout: Loadout = defaultLoadout();
 
   private budgetText!: Phaser.GameObjects.Text;
-  private pipGraphics!: Phaser.GameObjects.Graphics;
+  private budgetBar!: Phaser.GameObjects.Graphics;
+  private segG!: Phaser.GameObjects.Graphics;
   private plusBtns: Phaser.GameObjects.Container[] = [];
   private minusBtns: Phaser.GameObjects.Container[] = [];
 
@@ -37,60 +44,51 @@ export class SetupScene extends Phaser.Scene {
 
   init(): void {
     this.build = this.registry.get('raceBuild') as RaceBuild;
-    // Player (human 0) resumes their last saved build; others start fresh.
-    this.loadout =
-      this.build.currentHuman === 0 ? save.getLoadout() : defaultLoadout();
+    this.loadout = this.build.currentHuman === 0 ? save.getLoadout() : defaultLoadout();
     this.plusBtns = [];
     this.minusBtns = [];
   }
 
   create(): void {
     const cx = DESIGN.width / 2;
-    const label = `P${this.build.currentHuman + 1}`;
+    addBackground(this);
 
-    this.add
-      .text(cx, 36, `${label} — CONFIGURA AUTO`, {
-        fontFamily: 'monospace',
-        fontSize: '34px',
-        color: hex(COLORS.trackBorder),
-        fontStyle: 'bold',
-      })
+    const title = this.add
+      .text(cx, 46, `P${this.build.currentHuman + 1} · CONFIGURA AUTO`, displayStyle(34, COLORS.trackBorder, '900'))
       .setOrigin(0.5);
+    title.setLetterSpacing?.(3);
+    glow(title, COLORS.trackBorder, 1.2);
 
-    this.budgetText = this.add
-      .text(cx, 84, '', {
-        fontFamily: 'monospace',
-        fontSize: '24px',
-        color: hex(COLORS.accent),
-      })
-      .setOrigin(0.5);
+    // Budget readout + bar.
+    this.budgetText = this.add.text(cx, 96, '', bodyStyle(20, COLORS.accent, '700')).setOrigin(0.5, 0.5);
+    this.budgetText.setLetterSpacing?.(2);
+    this.budgetBar = this.add.graphics().setDepth(5);
 
-    this.pipGraphics = this.add.graphics().setDepth(5);
-
-    // One row per stat: label + hint, − button, level pips, + button.
-    const rowY = (i: number) => 150 + i * 92;
+    // Static card chrome (drawn once).
+    const cards = this.add.graphics().setDepth(1);
     STAT_KEYS.forEach((key, i) => {
-      const y = rowY(i);
+      const y = ROW_Y(i);
+      const color = STAT_COLORS[key];
+      cards.fillStyle(COLORS.panel, 0.85);
+      cards.fillRoundedRect(CARD_X, y - 40, CARD_W, 80, 14);
+      cards.lineStyle(1.5, COLORS.panelBorder, 0.8);
+      cards.strokeRoundedRect(CARD_X, y - 40, CARD_W, 80, 14);
+      // Left accent stripe.
+      cards.fillStyle(color, 1);
+      cards.fillRoundedRect(CARD_X, y - 40, 6, 80, 3);
+
+      this.add.text(CARD_X + 28, y - 13, STAT_LABELS[key], bodyStyle(24, color, '700')).setOrigin(0, 0.5);
       this.add
-        .text(150, y - 12, STAT_LABELS[key], {
-          fontFamily: 'monospace',
-          fontSize: '26px',
-          color: hex(COLORS.textPrimary),
-        })
-        .setOrigin(0, 0.5);
-      this.add
-        .text(150, y + 16, STAT_HINTS[key], {
-          fontFamily: 'monospace',
-          fontSize: '15px',
-          color: hex(COLORS.textDim),
-        })
+        .text(CARD_X + 28, y + 15, STAT_HINTS[key], bodyStyle(15, COLORS.textDim, '500'))
         .setOrigin(0, 0.5);
 
-      this.minusBtns[i] = makeButton(this, 760, y, 70, 64, '−', () => this.change(key, -1));
-      this.plusBtns[i] = makeButton(this, 1120, y, 70, 64, '+', () => this.change(key, +1), COLORS.accent);
+      this.minusBtns[i] = makeButton(this, 720, y, 62, 56, '−', () => this.change(key, -1), COLORS.panelBorder);
+      this.plusBtns[i] = makeButton(this, 1006, y, 62, 56, '+', () => this.change(key, +1), color);
     });
 
-    makeButton(this, cx, DESIGN.height - 60, 360, 84, 'CONFERMA', () => this.confirm(), COLORS.accent);
+    this.segG = this.add.graphics().setDepth(3);
+
+    makeButton(this, cx, DESIGN.height - 56, 380, 84, 'CONFERMA', () => this.confirm(), COLORS.accent);
 
     this.refresh();
   }
@@ -98,43 +96,56 @@ export class SetupScene extends Phaser.Scene {
   private change(key: StatKey, delta: number): void {
     const next = this.loadout[key] + delta;
     if (next < 0 || next > SETUP.maxLevel) return;
-    if (delta > 0 && loadoutTotal(this.loadout) >= SETUP.budget) return; // budget spent
+    if (delta > 0 && loadoutTotal(this.loadout) >= SETUP.budget) return;
     this.loadout[key] = next;
     this.refresh();
   }
 
-  /** Redraw pips, budget counter and dim buttons at their bounds. */
+  /** Redraw segmented level bars, budget bar, and dim buttons at their bounds. */
   private refresh(): void {
     const spent = loadoutTotal(this.loadout);
-    this.budgetText.setText(`PUNTI: ${spent}/${SETUP.budget}`);
+    this.budgetText.setText(`PUNTI  ${spent} / ${SETUP.budget}`);
 
-    const g = this.pipGraphics;
+    // Budget bar under the text.
+    const bb = this.budgetBar;
+    const bw = 280;
+    const bx = DESIGN.width / 2 - bw / 2;
+    const by = 118;
+    bb.clear();
+    bb.fillStyle(COLORS.panel, 1);
+    bb.fillRoundedRect(bx, by, bw, 10, 5);
+    bb.fillStyle(COLORS.accent, 1);
+    bb.fillRoundedRect(bx, by, (bw * spent) / SETUP.budget, 10, 5);
+
+    // Segmented bars per stat.
+    const g = this.segG;
     g.clear();
-    const rowY = (i: number) => 150 + i * 92;
     STAT_KEYS.forEach((key, i) => {
-      const y = rowY(i);
+      const y = ROW_Y(i);
       const lvl = this.loadout[key];
-      for (let p = 0; p < SETUP.maxLevel; p++) {
-        const px = 870 + p * 60;
-        if (p < lvl) {
-          g.fillStyle(COLORS.trackBorder, 1);
-          g.fillCircle(px, y, 16);
+      const color = STAT_COLORS[key];
+      for (let s = 0; s < SETUP.maxLevel; s++) {
+        const x = SEG_X[s] - SEG_W / 2;
+        if (s < lvl) {
+          g.fillStyle(color, 1);
+          g.fillRoundedRect(x, y - SEG_H / 2, SEG_W, SEG_H, 6);
         } else {
-          g.lineStyle(3, COLORS.textDim, 0.8);
-          g.strokeCircle(px, y, 16);
+          g.fillStyle(COLORS.bgBottom, 0.6);
+          g.fillRoundedRect(x, y - SEG_H / 2, SEG_W, SEG_H, 6);
+          g.lineStyle(1.5, COLORS.panelBorder, 0.9);
+          g.strokeRoundedRect(x, y - SEG_H / 2, SEG_W, SEG_H, 6);
         }
       }
-      // Dim − at 0, + when at max level or budget spent.
-      this.minusBtns[i].setAlpha(lvl <= 0 ? 0.4 : 1);
+      this.minusBtns[i].setAlpha(lvl <= 0 ? 0.35 : 1);
       const plusBlocked = lvl >= SETUP.maxLevel || spent >= SETUP.budget;
-      this.plusBtns[i].setAlpha(plusBlocked ? 0.4 : 1);
+      this.plusBtns[i].setAlpha(plusBlocked ? 0.35 : 1);
     });
   }
 
   private confirm(): void {
     const b = this.build;
     b.humanLoadouts[b.currentHuman] = this.loadout;
-    if (b.currentHuman === 0) save.setLoadout(this.loadout); // remember the player's build
+    if (b.currentHuman === 0) save.setLoadout(this.loadout);
     this.registry.set('raceBuild', b);
     this.scene.start('Draw');
   }
