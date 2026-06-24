@@ -9,6 +9,7 @@
  */
 import type { Trajectory, Vec2, RacerKind, CarStats } from './types';
 import type { Track } from './Track';
+import { CAR } from '../config/constants';
 import { perp, normalize, sub, add, scale } from './Geometry';
 
 export class Car {
@@ -141,12 +142,19 @@ export class Car {
     // sharpness (sharp corner = low cornerMax = bigger excess for the same
     // drawn speed), so a sharp corner taken too fast drifts wide while a gentle
     // one barely slips — proportional, as designed.
-    // Slide only ON track. Off track the car just slows down (surface penalty);
-    // any slide eases back to the line so it doesn't stutter out there.
+    // Slide happens only in CORNERS (not on straights) and only ON track. On a
+    // straight the car just accelerates; off track it just slows (surface).
+    const cornerFactor = Math.max(
+      0,
+      Math.min(1, (curvAbs - CAR.cornerSlideMin) / (CAR.cornerSlideFull - CAR.cornerSlideMin)),
+    );
     const excess = Math.max(0, target - cornerMax);
-    this.sliding = !this.offTrack && excess > 1.5;
-    const slideTarget = this.offTrack ? 0 : Math.min(st.maxSlide, excess * st.slideGain);
-    this.slide += (slideTarget - this.slide) * Math.min(1, st.slideEase * dt);
+    this.sliding = !this.offTrack && cornerFactor > 0 && excess > 1.5;
+    const slideTarget = this.offTrack ? 0 : Math.min(st.maxSlide, excess * st.slideGain) * cornerFactor;
+    // Build up gradually, but recover (return to the line) quickly so the car
+    // straightens out as soon as the corner ends.
+    const rate = slideTarget >= this.slide ? st.slideEase : CAR.slideRecover;
+    this.slide += (slideTarget - this.slide) * Math.min(1, rate * dt);
 
     // Accelerate / brake toward the effective target.
     if (this.speed < effTarget) {

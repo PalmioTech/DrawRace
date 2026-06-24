@@ -44,18 +44,9 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 
-// Best-effort landscape lock on first user gesture (Android/Chrome). On iOS
-// Safari this silently no-ops and the CSS "rotate device" overlay takes over.
-window.addEventListener(
-  'pointerdown',
-  () => {
-    const orientation = screen.orientation as (ScreenOrientation & { lock?: (o: string) => Promise<void> }) | undefined;
-    orientation?.lock?.('landscape').catch(() => {
-      /* not supported (iOS) — overlay handles it */
-    });
-  },
-  { once: true },
-);
+// The game runs landscape. No orientation/gyroscope lock — if the device is
+// held portrait, the CSS "rotate device" overlay (index.html) asks the player
+// to turn it; held landscape, it fills the screen.
 
 // Expose for debugging / automated smoke tests in dev.
 if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
@@ -111,15 +102,24 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     }
     const traj = buildHumanTrajectory(raw, PATH_SPACING, baseStats());
     const car = new Car(0, 'human', 'P1', 0x2de2e6, traj, track, baseStats());
-    const peek = car as unknown as { slide: number };
-    let maxSlide = 0;
+    const peek = car as unknown as { slide: number; s: number };
+    let maxSlideStraight = 0;
+    let maxSlideCorner = 0;
     let frames = 0;
     while (!car.finished && frames < 60 * 120) {
       car.update(1 / 60, track, frames / 60);
-      maxSlide = Math.max(maxSlide, peek.slide);
+      const idx = Math.min(traj.curvatures.length - 1, Math.max(0, Math.round(peek.s / traj.spacing)));
+      const curvAbs = Math.abs(traj.curvatures[idx]);
+      if (curvAbs < CAR.cornerSlideMin) maxSlideStraight = Math.max(maxSlideStraight, peek.slide);
+      else maxSlideCorner = Math.max(maxSlideCorner, peek.slide);
       frames++;
     }
-    return { dtMs, maxSlidePx: +maxSlide.toFixed(1), eliminated: car.eliminated, time: +(frames / 60).toFixed(1) };
+    return {
+      dtMs,
+      maxSlideStraight: +maxSlideStraight.toFixed(1),
+      maxSlideCorner: +maxSlideCorner.toFixed(1),
+      eliminated: car.eliminated,
+    };
   };
   // Build a stroke that deliberately swerves far OFF the track twice and verify
   // the car gets eliminated, stops early, and ranks last.
