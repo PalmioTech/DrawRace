@@ -55,12 +55,16 @@ export const CAR = {
    * sqrt(maxLatAccel * R). Lower = must slow more for corners.
    */
   maxLatAccel: 950,
-  /** How much lateral slide (px) per unit of over-speed when cornering above grip. */
-  slideGain: 0.05,
+  /**
+   * Lateral slide (px) per px/s of over-speed in a corner. Proportionality to
+   * corner sharpness is already inherent: a sharp corner has a low max corner
+   * speed, so the same drawn speed produces a larger over-speed → more slide.
+   */
+  slideGain: 0.3,
   /** How fast the slide offset eases toward its target (per-second rate). */
-  slideEase: 6,
-  /** Max lateral slide offset (px) — keeps the car from flying off the line. */
-  maxSlide: 34,
+  slideEase: 7,
+  /** Max lateral slide offset (px) — big overcooks can drift right off the track. */
+  maxSlide: 95,
   /** Low-pass factor for the rendered position (0..1 per tick). Lower = smoother. */
   renderSmooth: 0.3,
   /** Speed multiplier while off the track surface (grass/sand). */
@@ -103,8 +107,9 @@ export const STAT_SCALING = {
  */
 export const DRAW = {
   speedGain: 0.62,
-  /** Moving-average window (samples) to smooth jittery finger speed. */
-  smoothWindow: 10,
+  /** Moving-average window (samples) to smooth jittery finger speed.
+   * Small = the car tracks fast/slow finger changes faithfully (more precise). */
+  smoothWindow: 4,
   /** Min total drawn length (px) for a stroke to be considered valid. */
   minStrokeLength: 400,
   /** Comet fade: how many recent raw segments stay visible while drawing. */

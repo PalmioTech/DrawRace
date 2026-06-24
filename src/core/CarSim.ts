@@ -134,8 +134,12 @@ export class Car {
     // Over-speed for this corner → the player overcooked it: ease a bounded
     // lateral slide toward a target offset, in a STABLE direction (sign of the
     // smoothed curvature). No per-tick sign flips → no bouncing.
+    // Over-speed for this corner → slide. `excess` already scales with corner
+    // sharpness (sharp corner = low cornerMax = bigger excess for the same
+    // drawn speed), so a sharp corner taken too fast drifts wide while a gentle
+    // one barely slips — proportional, as designed.
     const excess = Math.max(0, target - cornerMax);
-    this.sliding = excess > 4;
+    this.sliding = excess > 1.5;
     const slideTarget = Math.min(st.maxSlide, excess * st.slideGain);
     this.slide += (slideTarget - this.slide) * Math.min(1, st.slideEase * dt);
 
@@ -143,8 +147,8 @@ export class Car {
     if (this.speed < effTarget) {
       this.speed = Math.min(effTarget, this.speed + st.accel * dt);
     } else {
-      // Extra braking force when overcooking a corner (the penalty bites).
-      const brake = st.brake * (this.sliding ? 1.5 : 1);
+      // Extra braking force when overcooking a corner (the penalty bites hard).
+      const brake = st.brake * (this.sliding ? 1.9 : 1);
       this.speed = Math.max(effTarget, this.speed - brake * dt);
     }
     this.speed = Math.max(st.minSpeed * surface, this.speed);

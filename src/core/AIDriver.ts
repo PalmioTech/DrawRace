@@ -19,9 +19,9 @@ interface DiffParams {
 }
 
 const PARAMS: Record<Difficulty, DiffParams> = {
-  easy: { aggression: 0.82, errorRate: 0.04, errorMag: 1.25 },
-  normal: { aggression: 0.92, errorRate: 0.02, errorMag: 1.35 },
-  hard: { aggression: 0.99, errorRate: 0.008, errorMag: 1.45 },
+  easy: { aggression: 0.66, errorRate: 0.1, errorMag: 1.3 },
+  normal: { aggression: 0.8, errorRate: 0.05, errorMag: 1.4 },
+  hard: { aggression: 0.9, errorRate: 0.022, errorMag: 1.5 },
 };
 
 /** Tiny deterministic PRNG (mulberry32) so each AI car is varied but reproducible. */
