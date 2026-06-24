@@ -11,6 +11,12 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Phaser is up and rendering — fade out the HTML loading screen.
+    const loader = document.getElementById('loader');
+    if (loader) {
+      loader.classList.add('hide');
+      window.setTimeout(() => loader.remove(), 500);
+    }
     this.scene.start('Menu');
   }
 }

@@ -7,11 +7,16 @@
 import type { TimedPoint, Vec2 } from './types';
 import type { Track } from './Track';
 import { segmentsIntersect, dist } from './Geometry';
+import { LAPS } from '../config/constants';
 
 export class PathRecorder {
   private points: TimedPoint[] = [];
   private laps = 0;
   private totalLength = 0;
+  /** Drawn length at which the last lap was counted (debounce). */
+  private lastLapAt = 0;
+  /** Set once LAPS laps are drawn — further samples are ignored. */
+  private complete = false;
   private readonly track: Track;
 
   constructor(track: Track) {
@@ -22,21 +27,45 @@ export class PathRecorder {
     this.points = [];
     this.laps = 0;
     this.totalLength = 0;
+    this.lastLapAt = 0;
+    this.complete = false;
   }
 
-  /** Add a sample. Ignores micro-jitter below 2px to keep the stroke clean. */
-  add(x: number, y: number, t: number): void {
+  /**
+   * Add a sample. Ignores micro-jitter (<2px) and refuses any input once the
+   * required laps are drawn (so the player can't keep scribbling past the line).
+   * Returns true if the stroke just became complete on this sample.
+   */
+  add(x: number, y: number, t: number): boolean {
+    if (this.complete) return false;
     const last = this.points[this.points.length - 1];
+    let justCompleted = false;
     if (last) {
       const d = Math.hypot(x - last.x, y - last.y);
-      if (d < 2) return;
+      if (d < 2) return false;
       this.totalLength += d;
-      // Lap detection: did this segment cross the start/finish line?
+      // Lap = a FORWARD crossing of the start line, debounced so the line must
+      // travel most of a lap between counts (kills start-adjacent / double counts).
       if (segmentsIntersect(last, { x, y }, this.track.startA, this.track.startB)) {
-        this.laps++;
+        const forward =
+          (x - last.x) * this.track.startDir.x + (y - last.y) * this.track.startDir.y > 0;
+        if (forward && this.totalLength - this.lastLapAt > this.track.length * 0.4) {
+          this.laps++;
+          this.lastLapAt = this.totalLength;
+          if (this.laps >= LAPS) {
+            this.complete = true;
+            justCompleted = true;
+          }
+        }
       }
     }
     this.points.push({ x, y, t });
+    return justCompleted;
+  }
+
+  /** True once the required laps have been drawn (no more input accepted). */
+  isComplete(): boolean {
+    return this.complete;
   }
 
   lapsCompleted(): number {

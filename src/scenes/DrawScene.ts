@@ -154,9 +154,11 @@ export class DrawScene extends Phaser.Scene {
 
   private onMove(p: Phaser.Input.Pointer): void {
     if (!this.drawing) return;
-    this.recorder.add(p.worldX, p.worldY, p.event?.timeStamp ?? performance.now());
+    const done = this.recorder.add(p.worldX, p.worldY, p.event?.timeStamp ?? performance.now());
     this.redrawPreview();
     this.hint.setText(`lap ${Math.min(LAPS, this.recorder.lapsCompleted())}/${LAPS}`);
+    // 3rd lap just closed → stop drawing automatically; no more input accepted.
+    if (done) this.onUp();
   }
 
   private onUp(): void {

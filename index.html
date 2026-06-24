@@ -66,9 +66,100 @@
         #game { display: none; }
         #rotate { display: flex; }
       }
+
+      /* ---- Fun neon loading screen (shown until the game boots) ---- */
+      #loader {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 26px;
+        background: radial-gradient(circle at 50% 40%, #0b0e22 0%, #05060f 70%);
+        font-family: monospace;
+        transition: opacity 0.45s ease;
+      }
+      #loader.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #loader h1 {
+        margin: 0;
+        font-size: 40px;
+        letter-spacing: 3px;
+        color: #2de2e6;
+        text-shadow: 0 0 18px rgba(45, 226, 230, 0.7);
+        animation: pulse 1.6s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.85; }
+        50% { opacity: 1; text-shadow: 0 0 26px rgba(45, 226, 230, 0.95); }
+      }
+      /* A neon lane with a car zooming across, leaving a trail. */
+      #loader .lane {
+        position: relative;
+        width: 280px;
+        height: 46px;
+        border-top: 2px dashed rgba(138, 144, 184, 0.5);
+        border-bottom: 2px dashed rgba(138, 144, 184, 0.5);
+        overflow: hidden;
+      }
+      #loader .car {
+        position: absolute;
+        top: 4px;
+        font-size: 30px;
+        animation: drive 1.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+      }
+      #loader .car::before {
+        content: '';
+        position: absolute;
+        right: 26px;
+        top: 16px;
+        width: 60px;
+        height: 6px;
+        border-radius: 3px;
+        background: linear-gradient(to left, #ff2e97, rgba(255, 46, 151, 0));
+        filter: blur(1px);
+      }
+      @keyframes drive {
+        0% { left: -44px; }
+        100% { left: 300px; }
+      }
+      /* Cross-fading playful messages. */
+      #loader .msgs {
+        position: relative;
+        height: 22px;
+        width: 320px;
+        text-align: center;
+      }
+      #loader .msgs span {
+        position: absolute;
+        inset: 0;
+        color: #8a90b8;
+        font-size: 16px;
+        opacity: 0;
+        animation: msg 6s linear infinite;
+      }
+      #loader .msgs span:nth-child(2) { animation-delay: 2s; }
+      #loader .msgs span:nth-child(3) { animation-delay: 4s; }
+      @keyframes msg {
+        0%, 33% { opacity: 1; }
+        40%, 100% { opacity: 0; }
+      }
     </style>
   </head>
   <body>
+    <div id="loader">
+      <h1>PROJECT RACING</h1>
+      <div class="lane"><span class="car">🏎️</span></div>
+      <div class="msgs">
+        <span>Scaldando i motori…</span>
+        <span>Disegnando le curve…</span>
+        <span>Gonfiando le gomme…</span>
+      </div>
+    </div>
     <div id="game"></div>
     <div id="rotate">
       <div class="ico">📱</div>

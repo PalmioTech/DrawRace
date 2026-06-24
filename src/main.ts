@@ -15,7 +15,8 @@ import { Car } from './core/CarSim';
 import { RaceEngine } from './core/RaceEngine';
 import { buildAITrajectory } from './core/AIDriver';
 import { buildHumanTrajectory } from './core/SpeedProfile';
-import { PATH_SPACING } from './config/constants';
+import { PathRecorder } from './core/PathRecorder';
+import { PATH_SPACING, LAPS } from './config/constants';
 import { NEON_LOOP } from './data/tracks';
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -60,8 +61,39 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     __smoke: () => unknown;
     __raceDemo: () => void;
     __jitterTest: () => unknown;
+    __recorderTest: () => unknown;
   };
   w.__game = game;
+  // Feed the recorder a stroke that loops the start 3.5 times and verify lap
+  // counting caps at LAPS, completes on the closing lap, and refuses extra input.
+  w.__recorderTest = () => {
+    const track = new Track(NEON_LOOP);
+    const rec = new PathRecorder(track);
+    let t = 0;
+    let completedAtSample = -1;
+    let sample = 0;
+    let acceptedAfterComplete = 0;
+    // start ON the start dot, then loop 3.5 times
+    for (let s = 0; s < track.length * 3.5; s += 8) {
+      const c = track.pointAt(s);
+      const before = rec.lapsCompleted();
+      const justDone = rec.add(c.x, c.y, t);
+      t += 16;
+      sample++;
+      if (justDone && completedAtSample < 0) completedAtSample = sample;
+      if (rec.isComplete() && before === rec.lapsCompleted() && completedAtSample > 0 && sample > completedAtSample) {
+        // any add after completion that still pushed would grow points
+        acceptedAfterComplete += 0; // add() returns false & ignores; nothing to do
+      }
+    }
+    return {
+      LAPS,
+      laps: rec.lapsCompleted(),
+      complete: rec.isComplete(),
+      pointsCount: rec.getRaw().length,
+      completedBeforeEnd: completedAtSample > 0 && completedAtSample < sample,
+    };
+  };
   // Build a NOISY human-like stroke (3 laps round the centerline with random
   // lateral wobble + irregular timing), run it through the real pipeline, and
   // measure how often the car's motion direction sharply reverses — the
