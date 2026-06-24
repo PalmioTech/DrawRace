@@ -58,6 +58,30 @@ export const CAR = {
   radius: 13,
 } as const;
 
+/** Pre-race car setup: point budget + max level per stat. */
+export const SETUP = {
+  budget: 6,
+  maxLevel: 3,
+} as const;
+
+/**
+ * How each stat level scales the base CAR values. Each value is the fractional
+ * change PER LEVEL (level 0 = base car). Tunable.
+ */
+export const STAT_SCALING = {
+  /** Grip: +lat cornering grip, −lateral slide per level. */
+  gripLat: 0.18,
+  gripSlide: 0.18,
+  /** Speed: +top speed per level. */
+  speed: 0.1,
+  /** Brake: +braking force per level. */
+  brake: 0.2,
+  /** Accel: +acceleration per level. */
+  accel: 0.18,
+  /** Offroad: extra tolerated off-track excursions per level (absolute, +1). */
+  offroad: 1,
+} as const;
+
 /**
  * Maps finger speed (px/s while drawing) to target car speed.
  * carTarget = clamp(fingerSpeed * gain, minSpeed, maxSpeed)

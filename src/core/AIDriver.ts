@@ -4,10 +4,10 @@
  * same cornering-grip physics the player is bound by — then injects occasional
  * mistakes. The resulting Trajectory is run by the exact same CarSim as a human's.
  */
-import type { Trajectory, Vec2, Difficulty } from './types';
+import type { Trajectory, Vec2, Difficulty, CarStats } from './types';
 import type { Track } from './Track';
 import { computeCurvatures, smoothScalars } from './Geometry';
-import { CAR, LAPS, PATH_SPACING, SMOOTH } from '../config/constants';
+import { LAPS, PATH_SPACING, SMOOTH } from '../config/constants';
 
 interface DiffParams {
   /** Fraction of the grip-limited corner speed the AI dares (≤1 safe). */
@@ -43,7 +43,12 @@ function rng(seed: number): () => number {
  * @param difficulty  AI skill level
  * @param seed        per-car seed (varies line + mistakes)
  */
-export function buildAITrajectory(track: Track, difficulty: Difficulty, seed: number): Trajectory {
+export function buildAITrajectory(
+  track: Track,
+  difficulty: Difficulty,
+  seed: number,
+  stats: CarStats,
+): Trajectory {
   const p = PARAMS[difficulty];
   const rand = rng(seed);
   const spacing = PATH_SPACING;
@@ -70,12 +75,12 @@ export function buildAITrajectory(track: Track, difficulty: Difficulty, seed: nu
   // occasional deliberate overshoots (mistakes).
   const speeds: number[] = points.map((_, i) => {
     const curv = Math.max(Math.abs(curvatures[i]), 1e-5);
-    const cornerMax = Math.sqrt(CAR.maxLatAccel / curv);
-    let target = Math.min(CAR.maxSpeed, cornerMax) * p.aggression;
+    const cornerMax = Math.sqrt(stats.maxLatAccel / curv);
+    let target = Math.min(stats.maxSpeed, cornerMax) * p.aggression;
     if (rand() < p.errorRate) {
-      target = Math.min(CAR.maxSpeed, cornerMax * p.errorMag); // overcook → will slide
+      target = Math.min(stats.maxSpeed, cornerMax * p.errorMag); // overcook → will slide
     }
-    return Math.max(CAR.minSpeed, target);
+    return Math.max(stats.minSpeed, target);
   });
 
   return {

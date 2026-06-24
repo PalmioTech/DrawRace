@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import { DESIGN, COLORS } from './config/constants';
 import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
+import { SetupScene } from './scenes/SetupScene';
 import { DrawScene } from './scenes/DrawScene';
 import { RaceScene } from './scenes/RaceScene';
 import { ResultScene } from './scenes/ResultScene';
@@ -15,8 +16,10 @@ import { Car } from './core/CarSim';
 import { RaceEngine } from './core/RaceEngine';
 import { buildAITrajectory } from './core/AIDriver';
 import { buildHumanTrajectory } from './core/SpeedProfile';
+import { baseStats, resolveStats, aiLoadout, loadoutTotal, STAT_KEYS } from './core/CarStats';
 import { PathRecorder } from './core/PathRecorder';
-import { PATH_SPACING, LAPS } from './config/constants';
+import { PATH_SPACING, LAPS, CAR, SETUP } from './config/constants';
+import type { Difficulty, Loadout } from './core/types';
 import { NEON_LOOP } from './data/tracks';
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -36,7 +39,7 @@ const config: Phaser.Types.Core.GameConfig = {
     antialias: true,
     roundPixels: false,
   },
-  scene: [BootScene, MenuScene, DrawScene, RaceScene, ResultScene],
+  scene: [BootScene, MenuScene, SetupScene, DrawScene, RaceScene, ResultScene],
 };
 
 const game = new Phaser.Game(config);
@@ -63,8 +66,37 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     __jitterTest: () => unknown;
     __recorderTest: () => unknown;
     __elimTest: (bumps?: number) => unknown;
+    __statsTest: () => unknown;
   };
   w.__game = game;
+  // Verify stat resolution + AI loadout validity.
+  w.__statsTest = () => {
+    const base = baseStats();
+    const max = (k: string): Loadout => {
+      const l = { grip: 0, speed: 0, brake: 0, accel: 0, offroad: 0 } as Loadout;
+      (l as Record<string, number>)[k] = 3;
+      return l;
+    };
+    const grip = resolveStats(max('grip'));
+    const speed = resolveStats(max('speed'));
+    const off = resolveStats(max('offroad'));
+    const diffs: Difficulty[] = ['easy', 'normal', 'hard'];
+    const aiValid = diffs.every((d) =>
+      [0, 1, 2, 3, 4].every((seed) => {
+        const l = aiLoadout(d, seed * 13 + 1);
+        return loadoutTotal(l) <= SETUP.budget && STAT_KEYS.every((k) => l[k] >= 0 && l[k] <= SETUP.maxLevel);
+      }),
+    );
+    return {
+      base0EqualsCar:
+        base.maxSpeed === CAR.maxSpeed && base.eliminateAfterOffRuns === CAR.eliminateAfterOffRuns,
+      gripRaisesLatLowersSlide: grip.maxLatAccel > base.maxLatAccel && grip.slideGain < base.slideGain,
+      speedRaisesTop: speed.maxSpeed > base.maxSpeed,
+      offroadRaisesTolerance: off.eliminateAfterOffRuns === CAR.eliminateAfterOffRuns + 3,
+      aiLoadoutsAlwaysValid: aiValid,
+      sampleAi: { easy: aiLoadout('easy', 5), hard: aiLoadout('hard', 5) },
+    };
+  };
   // Build a stroke that deliberately swerves far OFF the track twice and verify
   // the car gets eliminated, stops early, and ranks last.
   w.__elimTest = (bumps?: number) => {
@@ -86,8 +118,8 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       raw.push({ x: c.x + nx * off, y: c.y + ny * off, t });
       t += 16;
     }
-    const traj = buildHumanTrajectory(raw, PATH_SPACING);
-    const car = new Car(0, 'human', 'P1', 0x2de2e6, traj, track);
+    const traj = buildHumanTrajectory(raw, PATH_SPACING, baseStats());
+    const car = new Car(0, 'human', 'P1', 0x2de2e6, traj, track, baseStats());
     const peek = car as unknown as { offRuns: number };
     const events: { frac: number; offRuns: number }[] = [];
     let prevRuns = 0;
@@ -156,8 +188,8 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       raw.push({ x: c.x + nx * wob, y: c.y + ny * wob, t });
       t += 12 + rnd() * 26; // irregular timing
     }
-    const traj = buildHumanTrajectory(raw, PATH_SPACING);
-    const car = new Car(0, 'human', 'P1', 0x2de2e6, traj, track);
+    const traj = buildHumanTrajectory(raw, PATH_SPACING, baseStats());
+    const car = new Car(0, 'human', 'P1', 0x2de2e6, traj, track, baseStats());
     const pts: { x: number; y: number }[] = [];
     let frames = 0;
     while (!car.finished && frames < 60 * 120) {
@@ -193,7 +225,15 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     const colors = [0x2de2e6, 0xff2e97, 0xffe600, 0x7cff6b];
     const cars = [0, 1, 2, 3].map(
       (k) =>
-        new Car(k, 'ai', `CPU${k + 1}`, colors[k], buildAITrajectory(track, 'normal', 200 + k * 9), track),
+        new Car(
+          k,
+          'ai',
+          `CPU${k + 1}`,
+          colors[k],
+          buildAITrajectory(track, 'normal', 200 + k * 9, baseStats()),
+          track,
+          baseStats(),
+        ),
     );
     game.scene.stop('Menu');
     game.scene.start('Race', {
@@ -213,8 +253,9 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
           'ai',
           `CPU${k}`,
           0xffffff,
-          buildAITrajectory(track, k === 0 ? 'hard' : 'normal', 100 + k * 13),
+          buildAITrajectory(track, k === 0 ? 'hard' : 'normal', 100 + k * 13, baseStats()),
           track,
+          baseStats(),
         ),
     );
     const engine = new RaceEngine(track, cars);

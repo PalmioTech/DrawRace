@@ -5,10 +5,10 @@
  * drawing becomes the car's target speed along the path. Draw fast on straights,
  * ease off into corners.
  */
-import type { TimedPoint, Trajectory, Vec2 } from './types';
+import type { TimedPoint, Trajectory, Vec2, CarStats } from './types';
 import { smoothAndResample } from './PathSmoother';
 import { computeCurvatures, cumulativeLengths, smoothScalars } from './Geometry';
-import { CAR, DRAW, SMOOTH } from '../config/constants';
+import { DRAW, SMOOTH } from '../config/constants';
 
 /** Clamp helper. */
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -18,8 +18,9 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
  *
  * @param raw     timestamped finger samples
  * @param spacing node spacing (px) for the resampled path
+ * @param stats   the drawing player's car stats (clamps to their min/max speed)
  */
-export function buildHumanTrajectory(raw: TimedPoint[], spacing: number): Trajectory {
+export function buildHumanTrajectory(raw: TimedPoint[], spacing: number, stats: CarStats): Trajectory {
   const positions: Vec2[] = raw.map((p) => ({ x: p.x, y: p.y }));
   const points = smoothAndResample(positions, spacing);
 
@@ -40,14 +41,14 @@ export function buildHumanTrajectory(raw: TimedPoint[], spacing: number): Trajec
 
   // --- 2. Map finger speed onto each resampled node by arc length ---------
   const totalRaw = rawCum[rawCum.length - 1] || 1;
-  const speeds: number[] = new Array(points.length).fill(CAR.minSpeed);
+  const speeds: number[] = new Array(points.length).fill(stats.minSpeed);
   for (let i = 0; i < points.length; i++) {
     // Resampled nodes are evenly spaced; map node i to a fraction of the raw
     // stroke length, then sample the (smoothed) finger speed there.
     const frac = points.length > 1 ? i / (points.length - 1) : 0;
     const targetS = frac * totalRaw;
     const fingerSpeed = sampleAtArcLength(rawCum, smoothed, targetS);
-    speeds[i] = clamp(fingerSpeed * DRAW.speedGain, CAR.minSpeed, CAR.maxSpeed);
+    speeds[i] = clamp(fingerSpeed * DRAW.speedGain, stats.minSpeed, stats.maxSpeed);
   }
 
   const curvatures = smoothScalars(computeCurvatures(points, spacing), SMOOTH.curvatureWindow);

@@ -7,9 +7,8 @@
  * No car-to-car collisions: each car is independent ("ghost"), ranking is by
  * progress along the track centerline.
  */
-import type { Trajectory, Vec2, RacerKind } from './types';
+import type { Trajectory, Vec2, RacerKind, CarStats } from './types';
 import type { Track } from './Track';
-import { CAR } from '../config/constants';
 import { perp, normalize, sub, add, scale } from './Geometry';
 
 export class Car {
@@ -18,6 +17,8 @@ export class Car {
   readonly label: string;
   readonly color: number;
   readonly traj: Trajectory;
+  /** Resolved car stats (from the chosen setup). */
+  readonly stats: CarStats;
 
   /** Arc length travelled along the car's own trajectory. */
   s = 0;
@@ -52,14 +53,23 @@ export class Car {
   /** True while off the drivable surface this tick (for FX). */
   offTrack = false;
 
-  constructor(id: number, kind: RacerKind, label: string, color: number, traj: Trajectory, track: Track) {
+  constructor(
+    id: number,
+    kind: RacerKind,
+    label: string,
+    color: number,
+    traj: Trajectory,
+    track: Track,
+    stats: CarStats,
+  ) {
     this.id = id;
     this.kind = kind;
     this.label = label;
     this.color = color;
     this.traj = traj;
+    this.stats = stats;
     this.pos = traj.points.length ? { ...traj.points[0] } : { x: 0, y: 0 };
-    this.speed = CAR.minSpeed * 0.5;
+    this.speed = stats.minSpeed * 0.5;
     this.prevCenterFrac = track.project(this.pos).s / track.length;
   }
 
@@ -82,11 +92,12 @@ export class Car {
   update(dt: number, track: Track, time: number): void {
     if (this.finished || this.traj.points.length < 2) return;
 
+    const st = this.stats;
     const { p, target, curv, tangent } = this.sampleAt(this.s);
 
     // --- Corner grip limit: vmax = sqrt(latAccel / |curvature|) -----------
     const curvAbs = Math.abs(curv);
-    const cornerMax = Math.sqrt(CAR.maxLatAccel / Math.max(curvAbs, 1e-5));
+    const cornerMax = Math.sqrt(st.maxLatAccel / Math.max(curvAbs, 1e-5));
 
     // Off-track surface penalty + excursion counting, with HYSTERESIS: the car
     // goes "off" when it crosses the border, but only re-arms (can count a new
@@ -100,7 +111,7 @@ export class Car {
     if (!this.wasOff) {
       this.onDist += this.speed * dt;
       if (dCenter > half) {
-        if (this.onDist >= CAR.minOnGapPx) this.offRuns++;
+        if (this.onDist >= st.minOnGapPx) this.offRuns++;
         this.wasOff = true;
         this.onDist = 0;
       }
@@ -108,14 +119,14 @@ export class Car {
       this.wasOff = false; // back well inside → ready to count the next one
     }
     this.offTrack = this.wasOff;
-    if (this.offRuns >= CAR.eliminateAfterOffRuns) {
+    if (this.offRuns >= st.eliminateAfterOffRuns) {
       // Too many off-track runs → out of the race.
       this.eliminated = true;
       this.finished = true;
       this.speed = 0;
       return;
     }
-    const surface = this.offTrack ? CAR.offTrackGrip : 1;
+    const surface = this.offTrack ? st.offTrackGrip : 1;
 
     // Effective target this tick: requested speed, capped by grip + surface.
     const effTarget = Math.min(target, cornerMax) * surface;
@@ -125,18 +136,18 @@ export class Car {
     // smoothed curvature). No per-tick sign flips → no bouncing.
     const excess = Math.max(0, target - cornerMax);
     this.sliding = excess > 4;
-    const slideTarget = Math.min(CAR.maxSlide, excess * CAR.slideGain);
-    this.slide += (slideTarget - this.slide) * Math.min(1, CAR.slideEase * dt);
+    const slideTarget = Math.min(st.maxSlide, excess * st.slideGain);
+    this.slide += (slideTarget - this.slide) * Math.min(1, st.slideEase * dt);
 
     // Accelerate / brake toward the effective target.
     if (this.speed < effTarget) {
-      this.speed = Math.min(effTarget, this.speed + CAR.accel * dt);
+      this.speed = Math.min(effTarget, this.speed + st.accel * dt);
     } else {
       // Extra braking force when overcooking a corner (the penalty bites).
-      const brake = CAR.brake * (this.sliding ? 1.5 : 1);
+      const brake = st.brake * (this.sliding ? 1.5 : 1);
       this.speed = Math.max(effTarget, this.speed - brake * dt);
     }
-    this.speed = Math.max(CAR.minSpeed * surface, this.speed);
+    this.speed = Math.max(st.minSpeed * surface, this.speed);
 
     // Advance along the trajectory.
     this.s += this.speed * dt;
@@ -147,7 +158,7 @@ export class Car {
     const wanted = add(p, scale(outward, this.slide));
 
     // Low-pass the rendered position so any residual noise can't snap the car.
-    this.pos = add(this.pos, scale(sub(wanted, this.pos), CAR.renderSmooth));
+    this.pos = add(this.pos, scale(sub(wanted, this.pos), st.renderSmooth));
     this.dir = tangent;
 
     // Update centerline progress for ranking / lap display.

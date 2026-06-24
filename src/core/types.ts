@@ -45,3 +45,40 @@ export interface RaceConfig {
   carCount: number;
   difficulty: Difficulty;
 }
+
+// --- Car setup (pre-race customization) ---------------------------------
+
+/** The five tunable stats. */
+export type StatKey = 'grip' | 'speed' | 'brake' | 'accel' | 'offroad';
+
+/** A chosen build: level (0..maxLevel) per stat. Sum capped by the budget. */
+export type Loadout = Record<StatKey, number>;
+
+/** Resolved numeric car stats used by the simulation (base CAR scaled by levels). */
+export interface CarStats {
+  maxSpeed: number;
+  minSpeed: number;
+  accel: number;
+  brake: number;
+  maxLatAccel: number;
+  slideGain: number;
+  eliminateAfterOffRuns: number;
+  // Unscaled values copied from CAR so CarSim has one source of truth.
+  slideEase: number;
+  maxSlide: number;
+  renderSmooth: number;
+  offTrackGrip: number;
+  minOnGapPx: number;
+}
+
+/**
+ * Shared build state held in the Phaser registry while setup and draw ping-pong
+ * across scenes, one human at a time.
+ */
+export interface RaceBuild {
+  config: RaceConfig;
+  humanCount: number;
+  humanLoadouts: Loadout[];
+  humanTrajectories: Trajectory[];
+  currentHuman: number;
+}

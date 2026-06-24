@@ -6,12 +6,13 @@
  */
 import Phaser from 'phaser';
 import { COLORS, DESIGN, LAPS, PATH_SPACING, DRAW, CAR_LABELS } from '../config/constants';
-import type { RaceConfig, Trajectory } from '../core/types';
+import type { RaceBuild, Trajectory } from '../core/types';
 import { Track } from '../core/Track';
 import { NEON_LOOP } from '../data/tracks';
 import { PathRecorder } from '../core/PathRecorder';
 import { buildHumanTrajectory } from '../core/SpeedProfile';
 import { buildAITrajectory } from '../core/AIDriver';
+import { resolveStats, aiLoadout } from '../core/CarStats';
 import { Car } from '../core/CarSim';
 import { drawTrack } from '../ui/TrackView';
 import { makeButton, type Button } from '../ui/Button';
@@ -26,13 +27,10 @@ const lerpColor = (a: number, b: number, t: number) =>
   );
 
 export class DrawScene extends Phaser.Scene {
-  private config!: RaceConfig;
+  /** Shared build state (one human draws per invocation). */
+  private build!: RaceBuild;
   private track!: Track;
   private recorder!: PathRecorder;
-
-  private humanCount = 1;
-  private currentHuman = 0;
-  private humanTrajectories: Trajectory[] = [];
 
   private drawing = false;
   private pendingTraj: Trajectory | null = null;
@@ -48,11 +46,8 @@ export class DrawScene extends Phaser.Scene {
     super('Draw');
   }
 
-  init(data: { config: RaceConfig }): void {
-    this.config = data.config;
-    this.humanCount = data.config.mode === 'hotseat' ? data.config.carCount : 1;
-    this.currentHuman = 0;
-    this.humanTrajectories = [];
+  init(): void {
+    this.build = this.registry.get('raceBuild') as RaceBuild;
   }
 
   create(): void {
@@ -121,7 +116,7 @@ export class DrawScene extends Phaser.Scene {
 
   private startTurn(): void {
     this.resetStroke();
-    const label = CAR_LABELS[this.currentHuman] ?? `P${this.currentHuman + 1}`;
+    const label = CAR_LABELS[this.build.currentHuman] ?? `P${this.build.currentHuman + 1}`;
     this.title.setText(`${label} — draw your line`);
   }
 
@@ -137,8 +132,7 @@ export class DrawScene extends Phaser.Scene {
   private setReviewUI(review: boolean): void {
     this.redrawBtn.setVisible(review);
     this.nextBtn.setVisible(review);
-    const last = this.currentHuman === this.humanCount - 1;
-    this.nextBtn.list; // (container)
+    const last = this.build.currentHuman === this.build.humanCount - 1;
     (this.nextBtn.list[1] as Phaser.GameObjects.Text)?.setText(last ? 'RACE' : 'NEXT');
   }
 
@@ -209,8 +203,9 @@ export class DrawScene extends Phaser.Scene {
       this.flashRedrawOnly();
       return;
     }
-    // Valid: build the trajectory and enter review.
-    this.pendingTraj = buildHumanTrajectory(this.recorder.getRaw(), PATH_SPACING);
+    // Valid: build the trajectory (clamped to this player's car) and review.
+    const stats = resolveStats(this.build.humanLoadouts[this.build.currentHuman]);
+    this.pendingTraj = buildHumanTrajectory(this.recorder.getRaw(), PATH_SPACING, stats);
     this.hint.setText('looks good!').setColor(hex(COLORS.trackBorder));
     this.lineG.setAlpha(1);
     this.setReviewUI(true);
@@ -225,10 +220,13 @@ export class DrawScene extends Phaser.Scene {
 
   private acceptStroke(): void {
     if (!this.pendingTraj) return;
-    this.humanTrajectories.push(this.pendingTraj);
-    this.currentHuman++;
-    if (this.currentHuman < this.humanCount) {
-      this.startTurn();
+    const b = this.build;
+    b.humanTrajectories[b.currentHuman] = this.pendingTraj;
+    b.currentHuman++;
+    this.registry.set('raceBuild', b);
+    this.cleanupInput();
+    if (b.currentHuman < b.humanCount) {
+      this.scene.start('Setup'); // next human sets up, then draws
     } else {
       this.startRace();
     }
@@ -237,27 +235,30 @@ export class DrawScene extends Phaser.Scene {
   // --- Build race ----------------------------------------------------------
 
   private startRace(): void {
+    const b = this.build;
     const cars: Car[] = [];
-    const aiCount = this.config.carCount - this.humanCount;
+    const aiCount = b.config.carCount - b.humanCount;
     let colorIdx = 0;
 
-    // Human cars.
-    this.humanTrajectories.forEach((traj, i) => {
+    // Human cars — each with its own setup-derived stats.
+    b.humanTrajectories.forEach((traj, i) => {
       const color = COLORS.cars[colorIdx % COLORS.cars.length];
-      cars.push(new Car(colorIdx, 'human', CAR_LABELS[i] ?? `P${i + 1}`, color, traj, this.track));
+      const stats = resolveStats(b.humanLoadouts[i]);
+      cars.push(new Car(colorIdx, 'human', CAR_LABELS[i] ?? `P${i + 1}`, color, traj, this.track, stats));
       colorIdx++;
     });
 
-    // AI cars.
+    // AI cars — auto loadout by difficulty, trajectory uses those stats.
     for (let k = 0; k < aiCount; k++) {
-      const traj = buildAITrajectory(this.track, this.config.difficulty, 1000 + k * 7 + colorIdx);
+      const seed = 1000 + k * 7 + colorIdx;
+      const stats = resolveStats(aiLoadout(b.config.difficulty, seed));
+      const traj = buildAITrajectory(this.track, b.config.difficulty, seed, stats);
       const color = COLORS.cars[colorIdx % COLORS.cars.length];
-      cars.push(new Car(colorIdx, 'ai', `CPU${k + 1}`, color, traj, this.track));
+      cars.push(new Car(colorIdx, 'ai', `CPU${k + 1}`, color, traj, this.track, stats));
       colorIdx++;
     }
 
-    this.cleanupInput();
-    this.scene.start('Race', { track: this.track, cars, config: this.config, trackId: NEON_LOOP.id });
+    this.scene.start('Race', { track: this.track, cars, config: b.config, trackId: NEON_LOOP.id });
   }
 
   private cleanupInput(): void {

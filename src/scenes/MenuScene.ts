@@ -4,7 +4,7 @@
  */
 import Phaser from 'phaser';
 import { COLORS, DESIGN, LAPS } from '../config/constants';
-import type { Difficulty, GameMode, RaceConfig } from '../core/types';
+import type { Difficulty, GameMode, RaceConfig, RaceBuild } from '../core/types';
 import { makeButton, type Button } from '../ui/Button';
 import { save } from '../data/SaveManager';
 import { NEON_LOOP } from '../data/tracks';
@@ -130,6 +130,16 @@ export class MenuScene extends Phaser.Scene {
       carCount: this.carCount,
       difficulty: this.difficulty,
     };
-    this.scene.start('Draw', { config });
+    const humanCount = config.mode === 'hotseat' ? config.carCount : 1;
+    // Seed the shared build; Setup ↔ Draw fill it in, one human at a time.
+    const build: RaceBuild = {
+      config,
+      humanCount,
+      humanLoadouts: [],
+      humanTrajectories: [],
+      currentHuman: 0,
+    };
+    this.registry.set('raceBuild', build);
+    this.scene.start('Setup');
   }
 }

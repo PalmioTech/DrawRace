@@ -2,10 +2,11 @@
  * Local persistence via localStorage. Versioned JSON so the schema can evolve.
  * MVP stores best times per track + settings; `unlocks` is reserved for later.
  */
-import type { Difficulty } from '../core/types';
+import type { Difficulty, Loadout } from '../core/types';
+import { defaultLoadout, sanitizeLoadout } from '../core/CarStats';
 
 const KEY = 'project-racing:save';
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 export interface SaveData {
   schemaVersion: number;
@@ -14,6 +15,7 @@ export interface SaveData {
     audio: boolean;
     difficulty: Difficulty;
   };
+  lastLoadout: Loadout; // player's last chosen car setup
   unlocks: string[]; // reserved for future progression
 }
 
@@ -21,6 +23,7 @@ const DEFAULT: SaveData = {
   schemaVersion: SCHEMA_VERSION,
   bestTimes: {},
   settings: { audio: true, difficulty: 'normal' },
+  lastLoadout: defaultLoadout(),
   unlocks: [],
 };
 
@@ -75,6 +78,16 @@ export class SaveManager {
 
   setDifficulty(d: Difficulty): void {
     this.data.settings.difficulty = d;
+    this.persist();
+  }
+
+  /** Player's last car setup (sanitized to legal bounds). */
+  getLoadout(): Loadout {
+    return sanitizeLoadout(this.data.lastLoadout ?? defaultLoadout());
+  }
+
+  setLoadout(loadout: Loadout): void {
+    this.data.lastLoadout = sanitizeLoadout(loadout);
     this.persist();
   }
 }
