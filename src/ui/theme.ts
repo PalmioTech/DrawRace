@@ -17,7 +17,8 @@ type GlowTarget = Phaser.GameObjects.GameObject & {
  */
 export function glow<T extends GlowTarget>(obj: T, color: number, outer = 1.2, inner = 0): T {
   try {
-    obj.postFX?.addGlow(color, outer, inner);
+    // Soften globally for the premium (non-neon) look.
+    obj.postFX?.addGlow(color, outer * 0.55, inner);
   } catch {
     /* canvas renderer — skip */
   }
@@ -28,7 +29,7 @@ export function glow<T extends GlowTarget>(obj: T, color: number, outer = 1.2, i
 export function displayStyle(
   size: number,
   color: number = COLORS.textPrimary,
-  weight: '600' | '700' | '900' = '900',
+  weight: string = '700',
 ): Phaser.Types.GameObjects.Text.TextStyle {
   return {
     fontFamily: FONT.display,
@@ -42,7 +43,7 @@ export function displayStyle(
 export function bodyStyle(
   size: number,
   color: number = COLORS.textPrimary,
-  weight: '500' | '600' | '700' = '600',
+  weight: string = '500',
 ): Phaser.Types.GameObjects.Text.TextStyle {
   return {
     fontFamily: FONT.body,
@@ -60,15 +61,19 @@ export function bodyStyle(
 export function addBackground(scene: Phaser.Scene): void {
   const { width: W, height: H } = DESIGN;
 
-  // Vertical gradient fill.
+  // Deep vertical gradient.
   const grad = scene.add.graphics().setDepth(-100);
   grad.fillGradientStyle(COLORS.bgTop, COLORS.bgTop, COLORS.bgBottom, COLORS.bgBottom, 1);
   grad.fillRect(0, 0, W, H);
 
-  // Faint grid.
-  const grid = scene.add.graphics().setDepth(-99);
-  grid.lineStyle(1, COLORS.grid, 0.35);
-  const step = 64;
+  // Soft blue ambience near the top (premium depth, not a neon blob).
+  const halo = scene.add.circle(W * 0.5, -40, 360, COLORS.accent, 0.06).setDepth(-99);
+  glow(halo, COLORS.accent, 1.4, 0);
+
+  // Very faint fine grid.
+  const grid = scene.add.graphics().setDepth(-98);
+  grid.lineStyle(1, COLORS.grid, 0.5);
+  const step = 80;
   for (let x = 0; x <= W; x += step) {
     grid.beginPath();
     grid.moveTo(x, 0);
@@ -82,26 +87,19 @@ export function addBackground(scene: Phaser.Scene): void {
     grid.strokePath();
   }
 
-  // Drifting glow blobs for ambient depth.
-  const blob = (x: number, y: number, color: number) => {
-    const c = scene.add.circle(x, y, 220, color, 0.1).setDepth(-98);
-    glow(c, color, 2, 0);
-    scene.tweens.add({
-      targets: c,
-      x: x + (x < W / 2 ? 80 : -80),
-      y: y + 60,
-      duration: 6000 + Math.abs(x - y) * 4,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.InOut',
-    });
-  };
-  blob(W * 0.2, H * 0.25, COLORS.trackBorder);
-  blob(W * 0.82, H * 0.7, COLORS.accent);
+  // Thin accent hairlines top + bottom (GT-style separators).
+  const lines = scene.add.graphics().setDepth(-97);
+  lines.lineStyle(1.5, COLORS.accent, 0.5);
+  lines.beginPath();
+  lines.moveTo(0, 3);
+  lines.lineTo(W, 3);
+  lines.moveTo(0, H - 3);
+  lines.lineTo(W, H - 3);
+  lines.strokePath();
 
-  // Subtle vignette (dark edges).
-  const vig = scene.add.graphics().setDepth(-97);
-  vig.fillStyle(0x000000, 0.35);
-  vig.fillRect(0, 0, W, 70);
-  vig.fillRect(0, H - 70, W, 70);
+  // Subtle vignette (dark top/bottom edges).
+  const vig = scene.add.graphics().setDepth(-96);
+  vig.fillStyle(0x000000, 0.3);
+  vig.fillRect(0, 0, W, 60);
+  vig.fillRect(0, H - 60, W, 60);
 }

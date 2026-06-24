@@ -141,39 +141,39 @@ export const SMOOTH = {
   curvatureWindow: 8,
 } as const;
 
-/** Neon theme palette (0xRRGGBB). */
+/** Gran Turismo-inspired premium palette (0xRRGGBB): deep dark, electric blue. */
 export const COLORS = {
-  bg: 0x05060f,
-  trackFill: 0x121526,
-  trackBorder: 0x2de2e6,
-  trackCenterline: 0x2a2f4a,
-  startLine: 0xf6f7ff,
-  textPrimary: 0xf6f7ff,
-  textMid: 0xb4bce0,
-  textDim: 0x8a90b8,
-  accent: 0xff2e97,
+  bg: 0x05070e,
+  trackFill: 0x0e1322,
+  trackBorder: 0x4d8dff,
+  trackCenterline: 0x243150,
+  startLine: 0xeef2fb,
+  textPrimary: 0xeef2fb,
+  textMid: 0x9aa6c4,
+  textDim: 0x66708c,
+  accent: 0x2e7bff,
   /** Per-car colors — matched to the car sprites (yellow, green, blue, red). */
   cars: [0xffe600, 0x6cff5a, 0x3a86ff, 0xff3b3b] as number[],
   /** Draw-line speed gradient endpoints (slow → fast). */
-  drawSlow: 0xff2e97,
-  drawFast: 0x2de2e6,
+  drawSlow: 0x3a4a6e,
+  drawFast: 0x4d8dff,
   // --- UI chrome ---
   /** Background gradient stops (top → bottom). */
-  bgTop: 0x0a0e24,
-  bgBottom: 0x04050d,
+  bgTop: 0x0a1024,
+  bgBottom: 0x04060c,
   /** Faint background grid lines. */
-  grid: 0x1b2142,
+  grid: 0x121a30,
   /** Panel / card fill + border. */
-  panel: 0x0e1230,
-  panelBorder: 0x2b3566,
-  /** Secondary accent (violet) for variety. */
-  violet: 0x8b5cf6,
+  panel: 0x0b1020,
+  panelBorder: 0x223052,
+  /** Secondary accent. */
+  violet: 0x6f8cff,
 } as const;
 
 /** UI fonts loaded in index.html. */
 export const FONT = {
-  display: 'Orbitron',
-  body: 'Rajdhani',
+  display: 'Saira',
+  body: 'Saira',
 } as const;
 
 /** Per-stat accent colors (setup UI), keyed in STAT_KEYS order. */

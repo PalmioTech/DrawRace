@@ -21,10 +21,10 @@ export class BootScene extends Phaser.Scene {
     // Wait for the web fonts so text renders in Orbitron/Rajdhani — but never
     // block boot more than a moment (offline / slow CDN falls back gracefully).
     const fonts = Promise.all([
-      document.fonts.load('900 32px Orbitron'),
-      document.fonts.load('700 24px Orbitron'),
-      document.fonts.load('600 20px Rajdhani'),
-      document.fonts.load('700 20px Rajdhani'),
+      document.fonts.load('800 32px Saira'),
+      document.fonts.load('600 24px Saira'),
+      document.fonts.load('400 20px Saira'),
+      document.fonts.load('300 20px Saira'),
     ]).catch(() => {});
     const timeout = new Promise((res) => window.setTimeout(res, 1500));
     await Promise.race([fonts, timeout]);
