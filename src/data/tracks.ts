@@ -18,20 +18,22 @@ export interface TrackDef {
 export const NEON_LOOP: TrackDef = {
   id: 'neon-loop',
   name: 'Neon Loop',
-  halfWidth: 62,
+  halfWidth: 58,
+  // Landscape circuit (fits 1280×720) with a start straight along the top,
+  // a couple of tight corners and a bottom-right hairpin bump.
   controls: [
-    { x: 360, y: 230 }, // top straight (start area)
-    { x: 540, y: 290 },
-    { x: 600, y: 470 },
-    { x: 520, y: 640 },
-    { x: 590, y: 850 },
-    { x: 520, y: 1030 },
-    { x: 360, y: 1080 },
-    { x: 200, y: 1030 },
-    { x: 130, y: 850 },
-    { x: 200, y: 640 },
-    { x: 120, y: 470 },
-    { x: 180, y: 290 },
+    { x: 640, y: 130 }, // start straight (top center)
+    { x: 900, y: 155 },
+    { x: 1090, y: 290 },
+    { x: 990, y: 430 },
+    { x: 1110, y: 580 }, // bottom-right hairpin
+    { x: 820, y: 605 },
+    { x: 640, y: 555 },
+    { x: 460, y: 605 },
+    { x: 175, y: 585 },
+    { x: 285, y: 430 },
+    { x: 185, y: 290 },
+    { x: 375, y: 155 },
   ],
 };
 

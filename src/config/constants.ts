@@ -9,10 +9,10 @@
  * draw-to-race mechanic is mostly about adjusting them.
  */
 
-/** Fixed virtual resolution (portrait). The whole track fits inside this. */
+/** Fixed virtual resolution (LANDSCAPE). The whole track fits inside this. */
 export const DESIGN = {
-  width: 720,
-  height: 1280,
+  width: 1280,
+  height: 720,
 } as const;
 
 /** Number of laps the player must draw (baked into the trajectory). */

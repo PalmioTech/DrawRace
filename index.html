@@ -29,10 +29,52 @@
         width: 100%;
         height: 100%;
       }
+      /* Landscape-only: in portrait, hide the game and ask the user to rotate. */
+      #rotate {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #05060f;
+        color: #f6f7ff;
+        font-family: monospace;
+        text-align: center;
+        padding: 0 24px;
+      }
+      #rotate .ico {
+        font-size: 64px;
+        animation: spin 2.2s ease-in-out infinite;
+      }
+      #rotate .t {
+        font-size: 22px;
+        color: #2de2e6;
+        letter-spacing: 1px;
+      }
+      #rotate .s {
+        font-size: 15px;
+        color: #8a90b8;
+      }
+      @keyframes spin {
+        0%, 40% { transform: rotate(0deg); }
+        60%, 100% { transform: rotate(90deg); }
+      }
+      @media (orientation: portrait) {
+        #game { display: none; }
+        #rotate { display: flex; }
+      }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="rotate">
+      <div class="ico">📱</div>
+      <div class="t">RUOTA IL DISPOSITIVO</div>
+      <div class="s">gioca in orizzontale</div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

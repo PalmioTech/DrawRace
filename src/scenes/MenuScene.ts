@@ -29,7 +29,7 @@ export class MenuScene extends Phaser.Scene {
     const cx = DESIGN.width / 2;
 
     this.add
-      .text(cx, 120, 'PROJECT RACING', {
+      .text(cx, 56, 'PROJECT RACING', {
         fontFamily: 'monospace',
         fontSize: '46px',
         color: hex(COLORS.trackBorder),
@@ -37,7 +37,7 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add
-      .text(cx, 170, 'draw your line · race it', {
+      .text(cx, 100, 'draw your line · race it', {
         fontFamily: 'monospace',
         fontSize: '20px',
         color: hex(COLORS.textDim),
@@ -46,7 +46,7 @@ export class MenuScene extends Phaser.Scene {
 
     const best = save.getBestTime(NEON_LOOP.id);
     this.add
-      .text(cx, 210, best ? `best: ${best.toFixed(2)}s` : 'no record yet', {
+      .text(cx, 132, best ? `best: ${best.toFixed(2)}s` : 'no record yet', {
         fontFamily: 'monospace',
         fontSize: '18px',
         color: hex(COLORS.accent),
@@ -54,30 +54,30 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     // --- Mode ---------------------------------------------------------------
-    this.section(cx, 280, 'MODE');
+    this.section(cx, 180, 'MODE');
     this.modeButtons = [
-      makeButton(this, cx - 165, 340, 300, 70, 'vs COMPUTER', () => this.setMode('ai')),
-      makeButton(this, cx + 165, 340, 300, 70, 'HOTSEAT', () => this.setMode('hotseat')),
+      makeButton(this, cx - 165, 228, 300, 66, 'vs COMPUTER', () => this.setMode('ai')),
+      makeButton(this, cx + 165, 228, 300, 66, 'HOTSEAT', () => this.setMode('hotseat')),
     ];
 
     // --- Car count ----------------------------------------------------------
-    this.section(cx, 430, 'CARS');
+    this.section(cx, 298, 'CARS');
     this.countButtons = [2, 3, 4].map((n, i) =>
-      makeButton(this, cx - 200 + i * 200, 490, 170, 70, String(n), () => this.setCount(n)),
+      makeButton(this, cx - 200 + i * 200, 344, 170, 66, String(n), () => this.setCount(n)),
     );
 
     // --- Difficulty (AI only) ----------------------------------------------
-    this.diffLabel = this.section(cx, 580, 'AI DIFFICULTY');
+    this.diffLabel = this.section(cx, 414, 'AI DIFFICULTY');
     const diffs: Difficulty[] = ['easy', 'normal', 'hard'];
     this.diffButtons = diffs.map((d, i) =>
-      makeButton(this, cx - 200 + i * 200, 640, 170, 70, d.toUpperCase(), () => this.setDiff(d)),
+      makeButton(this, cx - 200 + i * 200, 460, 170, 66, d.toUpperCase(), () => this.setDiff(d)),
     );
 
     // --- Start --------------------------------------------------------------
-    makeButton(this, cx, 780, 380, 90, 'START', () => this.start(), COLORS.accent);
+    makeButton(this, cx, 580, 380, 86, 'START', () => this.start(), COLORS.accent);
 
     this.add
-      .text(cx, 900, `draw ${LAPS} laps with your finger`, {
+      .text(cx, 668, `draw ${LAPS} laps with your finger`, {
         fontFamily: 'monospace',
         fontSize: '18px',
         color: hex(COLORS.textDim),

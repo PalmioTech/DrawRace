@@ -38,6 +38,19 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 
+// Best-effort landscape lock on first user gesture (Android/Chrome). On iOS
+// Safari this silently no-ops and the CSS "rotate device" overlay takes over.
+window.addEventListener(
+  'pointerdown',
+  () => {
+    const orientation = screen.orientation as (ScreenOrientation & { lock?: (o: string) => Promise<void> }) | undefined;
+    orientation?.lock?.('landscape').catch(() => {
+      /* not supported (iOS) — overlay handles it */
+    });
+  },
+  { once: true },
+);
+
 // Expose for debugging / automated smoke tests in dev.
 if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
   const w = window as unknown as {
