@@ -43,6 +43,13 @@ export class RaceScene extends Phaser.Scene {
     const { track, cars } = this.payload;
     this.engine = new RaceEngine(track, cars);
 
+    // Phaser reuses the scene instance across restarts, so reset run state here
+    // (field initializers only run once). Without this, a 2nd race sees
+    // done=true/started=true and never advances.
+    this.started = false;
+    this.done = false;
+    this.trails.clear();
+
     const g = this.add.graphics();
     drawTrack(g, track);
 
