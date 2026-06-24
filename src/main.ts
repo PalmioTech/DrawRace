@@ -144,12 +144,14 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     }
     const traj = buildHumanTrajectory(raw, PATH_SPACING, baseStats());
     const car = new Car(0, 'human', 'P1', 0x2de2e6, traj, track, baseStats());
-    const peek = car as unknown as { offRuns: number };
+    const peek = car as unknown as { offRuns: number; offTrack: boolean; speed: number };
     const events: { frac: number; offRuns: number }[] = [];
     let prevRuns = 0;
+    let minOffSpeed = Infinity;
     let frames = 0;
     while (!car.finished && frames < 60 * 120) {
       car.update(1 / 60, track, frames / 60);
+      if (peek.offTrack && !car.eliminated) minOffSpeed = Math.min(minOffSpeed, peek.speed);
       if (peek.offRuns !== prevRuns) {
         events.push({ frac: +(car.s / traj.length).toFixed(3), offRuns: peek.offRuns });
         prevRuns = peek.offRuns;
@@ -160,6 +162,7 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       eliminated: car.eliminated,
       stoppedEarly: car.s < traj.length,
       progressFrac: +(car.s / traj.length).toFixed(2),
+      minOffTrackSpeed: minOffSpeed === Infinity ? null : Math.round(minOffSpeed),
       excursionEvents: events,
     };
   };

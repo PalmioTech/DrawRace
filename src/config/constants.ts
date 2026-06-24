@@ -78,6 +78,12 @@ export const CAR = {
   renderSmooth: 0.22,
   /** Speed multiplier while off the track surface (grass/sand). */
   offTrackGrip: 0.6,
+  /** Off-track the car is capped to this speed — slow but never stops. */
+  offTrackMaxSpeed: 230,
+  /** Off-track minimum speed — keeps it rolling, never blocks. */
+  offTrackMinSpeed: 160,
+  /** Gentler braking when rolling onto grass (so it eases, not slams to a stop). */
+  offTrackBrake: 600,
   /** Number of off-track excursions before a car is eliminated. */
   eliminateAfterOffRuns: 2,
   /** Min on-track distance (px) between counted excursions (debounces edge jitter). */

@@ -130,10 +130,11 @@ export class Car {
       this.speed = 0;
       return;
     }
-    const surface = this.offTrack ? st.offTrackGrip : 1;
-
-    // Effective target this tick: requested speed, capped by grip + surface.
-    const effTarget = Math.min(target, cornerMax) * surface;
+    // Effective target this tick. On track: capped by corner grip. Off track:
+    // capped to a slow cruise (grass) — slow but never stopped/blocked.
+    const effTarget = this.offTrack
+      ? Math.min(target, CAR.offTrackMaxSpeed)
+      : Math.min(target, cornerMax);
 
     // Over-speed for this corner → the player overcooked it: ease a bounded
     // lateral slide toward a target offset, in a STABLE direction (sign of the
@@ -160,11 +161,11 @@ export class Car {
     if (this.speed < effTarget) {
       this.speed = Math.min(effTarget, this.speed + st.accel * dt);
     } else {
-      // Extra braking force when overcooking a corner (the penalty bites hard).
-      const brake = st.brake * (this.sliding ? 1.9 : 1);
+      // Gentle braking onto grass; harder brake when overcooking a corner.
+      const brake = this.offTrack ? CAR.offTrackBrake : st.brake * (this.sliding ? 1.9 : 1);
       this.speed = Math.max(effTarget, this.speed - brake * dt);
     }
-    this.speed = Math.max(st.minSpeed * surface, this.speed);
+    this.speed = Math.max(this.offTrack ? CAR.offTrackMinSpeed : st.minSpeed, this.speed);
 
     // Advance along the trajectory.
     this.s += this.speed * dt;
