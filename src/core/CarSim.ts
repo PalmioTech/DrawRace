@@ -9,8 +9,8 @@
  */
 import type { Trajectory, Vec2, RacerKind, CarStats } from './types';
 import type { Track } from './Track';
-import { CAR } from '../config/constants';
-import { perp, normalize, sub, add, scale } from './Geometry';
+import { CAR, LAPS } from '../config/constants';
+import { perp, normalize, sub, add, scale, segmentsIntersect } from './Geometry';
 
 export class Car {
   readonly id: number;
@@ -49,6 +49,10 @@ export class Car {
   // --- centerline progress (for ranking + lap display) ---
   private centerLap = 0;
   private prevCenterFrac = 0;
+  // --- finish-line crossing (authoritative finish) ---
+  private crossings = 0;
+  private lastCrossS = 0;
+  private prevPos: Vec2;
   /** True while the car is sliding above grip this tick (for FX). */
   sliding = false;
   /** True while off the drivable surface this tick (for FX). */
@@ -74,6 +78,7 @@ export class Car {
     // the grid, not toward the start line).
     if (traj.points.length >= 2) this.dir = normalize(sub(traj.points[1], traj.points[0]));
     this.speed = stats.minSpeed * 0.5;
+    this.prevPos = { ...this.pos };
     this.prevCenterFrac = track.project(this.pos).s / track.length;
   }
 
@@ -189,11 +194,23 @@ export class Car {
     // Update centerline progress for ranking / lap display.
     this.updateProgress(track);
 
-    // Finished when the whole (3-lap) trajectory is consumed.
-    if (this.s >= this.traj.length) {
+    // Authoritative finish: the LAPS-th FORWARD crossing of the finish line
+    // (debounced by distance). Stops the car AT the line, not at the end of the
+    // drawn stroke (which overshoots past the line and would drift on).
+    if (segmentsIntersect(this.prevPos, this.pos, track.startA, track.startB)) {
+      const fwd =
+        (this.pos.x - this.prevPos.x) * track.startDir.x +
+        (this.pos.y - this.prevPos.y) * track.startDir.y;
+      if (fwd > 0 && this.s - this.lastCrossS > track.length * 0.4) {
+        this.crossings++;
+        this.lastCrossS = this.s;
+      }
+    }
+    this.prevPos = { ...this.pos };
+
+    if (this.crossings >= LAPS || this.s >= this.traj.length) {
       this.finished = true;
       this.finishTime = time;
-      this.s = this.traj.length;
     }
   }
 
