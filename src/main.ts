@@ -105,6 +105,7 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     const peek = car as unknown as { slide: number; s: number };
     let maxSlideStraight = 0;
     let maxSlideCorner = 0;
+    let maxYawDeg = 0;
     let frames = 0;
     while (!car.finished && frames < 60 * 120) {
       car.update(1 / 60, track, frames / 60);
@@ -112,12 +113,20 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       const curvAbs = Math.abs(traj.curvatures[idx]);
       if (curvAbs < CAR.cornerSlideMin) maxSlideStraight = Math.max(maxSlideStraight, peek.slide);
       else maxSlideCorner = Math.max(maxSlideCorner, peek.slide);
+      // Yaw = angle between heading and path tangent.
+      const a = traj.points[idx];
+      const b = traj.points[Math.min(traj.points.length - 1, idx + 1)];
+      const tx = b.x - a.x;
+      const ty = b.y - a.y;
+      const cross = tx * car.dir.y - ty * car.dir.x;
+      const dot = tx * car.dir.x + ty * car.dir.y;
+      maxYawDeg = Math.max(maxYawDeg, Math.abs((Math.atan2(cross, dot) * 180) / Math.PI));
       frames++;
     }
     return {
       dtMs,
-      maxSlideStraight: +maxSlideStraight.toFixed(1),
       maxSlideCorner: +maxSlideCorner.toFixed(1),
+      maxYawDeg: +maxYawDeg.toFixed(1),
       eliminated: car.eliminated,
     };
   };

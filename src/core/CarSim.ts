@@ -177,7 +177,14 @@ export class Car {
 
     // Low-pass the rendered position so any residual noise can't snap the car.
     this.pos = add(this.pos, scale(sub(wanted, this.pos), st.renderSmooth));
-    this.dir = tangent;
+
+    // Drift yaw: while sliding, rotate the car's heading off the path tangent so
+    // it visibly DRIFTS (nose kicked toward the corner) instead of just being
+    // shifted sideways. Angle scales with how much it's sliding.
+    const driftAngle = (this.slide / st.maxSlide) * CAR.driftMaxAngle * this.slideSign;
+    const ca = Math.cos(driftAngle);
+    const sa = Math.sin(driftAngle);
+    this.dir = { x: tangent.x * ca - tangent.y * sa, y: tangent.x * sa + tangent.y * ca };
 
     // Update centerline progress for ranking / lap display.
     this.updateProgress(track);

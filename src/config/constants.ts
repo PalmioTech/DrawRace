@@ -74,6 +74,8 @@ export const CAR = {
   slideRecover: 16,
   /** Max lateral slide offset (px) — big overcooks can drift right off the track. */
   maxSlide: 80,
+  /** Max yaw angle (rad) the car rotates while fully sliding (drift look). */
+  driftMaxAngle: 0.6,
   /** Low-pass factor for the rendered position (0..1 per tick). Lower = smoother. */
   renderSmooth: 0.22,
   /** Speed multiplier while off the track surface (grass/sand). */
