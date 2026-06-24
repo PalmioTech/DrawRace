@@ -77,9 +77,13 @@ export class SetupScene extends Phaser.Scene {
       cards.fillStyle(color, 1);
       cards.fillRoundedRect(CARD_X, y - 40, 6, 80, 3);
 
-      this.add.text(CARD_X + 28, y - 13, STAT_LABELS[key], bodyStyle(24, color, '700')).setOrigin(0, 0.5);
+      const lbl = this.add
+        .text(CARD_X + 28, y - 13, STAT_LABELS[key], bodyStyle(26, color, '700'))
+        .setOrigin(0, 0.5);
+      lbl.setLetterSpacing?.(1);
+      glow(lbl, color, 0.5);
       this.add
-        .text(CARD_X + 28, y + 15, STAT_HINTS[key], bodyStyle(15, COLORS.textDim, '500'))
+        .text(CARD_X + 28, y + 16, STAT_HINTS[key], bodyStyle(17, COLORS.textMid, '600'))
         .setOrigin(0, 0.5);
 
       this.minusBtns[i] = makeButton(this, 720, y, 62, 56, '−', () => this.change(key, -1), COLORS.panelBorder);

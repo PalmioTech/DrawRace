@@ -19,6 +19,7 @@ import {
   scale,
   dist,
 } from './Geometry';
+import { PLAY_AREA } from '../config/constants';
 
 export class Track {
   readonly def: TrackDef;
@@ -38,12 +39,16 @@ export class Track {
   /** Center of the start line. */
   readonly startPos: Vec2;
 
-  constructor(def: TrackDef) {
+  constructor(def: TrackDef, area: { x: number; y: number; w: number; h: number } = PLAY_AREA) {
     this.def = def;
     this.halfWidth = def.halfWidth;
 
+    // Fit the control points into the play area (scaled to fill it, inset by the
+    // track width). Draw input and race rendering then share the same big map.
+    const fitted = Track.fitControls(def.controls, area, def.halfWidth + 34);
+
     // Build the centerline and close the loop explicitly for clean projection.
-    const dense = sampleClosedSpline(def.controls, 18);
+    const dense = sampleClosedSpline(fitted, 18);
     dense.push(dense[0]);
     this.center = dense;
     this.cum = cumulativeLengths(dense);
@@ -55,6 +60,26 @@ export class Track {
     const side = scale(perp(this.startDir), this.halfWidth);
     this.startA = add(this.startPos, side);
     this.startB = sub(this.startPos, side);
+  }
+
+  /** Scale + translate control points to fill `area` (inset on all sides). */
+  private static fitControls(
+    controls: Vec2[],
+    area: { x: number; y: number; w: number; h: number },
+    inset: number,
+  ): Vec2[] {
+    const xs = controls.map((p) => p.x);
+    const ys = controls.map((p) => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const sx = (area.w - 2 * inset) / (maxX - minX);
+    const sy = (area.h - 2 * inset) / (maxY - minY);
+    return controls.map((p) => ({
+      x: area.x + inset + (p.x - minX) * sx,
+      y: area.y + inset + (p.y - minY) * sy,
+    }));
   }
 
   /** Project a point onto the centerline (distance + arc-length position). */

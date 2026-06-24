@@ -58,6 +58,7 @@ export class RaceScene extends Phaser.Scene {
     cars.forEach((c) => this.trails.set(c.id, []));
 
     this.hud = new Hud(this, cars.length);
+    this.hud.update(this.engine); // show the starting grid before the countdown
 
     // 3-2-1-GO countdown, then release the cars.
     this.countdown();

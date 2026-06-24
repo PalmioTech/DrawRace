@@ -18,6 +18,21 @@ export const DESIGN = {
 /** Number of laps the player must draw (baked into the trajectory). */
 export const LAPS = 3;
 
+/** Left sidebar (live times + standings) width. */
+export const SIDEBAR_W = 296;
+
+/**
+ * Play area the track is fitted into — almost full screen, right of the sidebar.
+ * Track geometry is scaled to fill this in Track's constructor, so draw input
+ * and race rendering share the same big map.
+ */
+export const PLAY_AREA = {
+  x: SIDEBAR_W + 10,
+  y: 12,
+  w: 1280 - (SIDEBAR_W + 10) - 14,
+  h: 720 - 24,
+} as const;
+
 /** Physics simulation step. Fixed timestep → deterministic, stable feel. */
 export const SIM = {
   /** seconds per fixed physics tick (60 Hz) */
@@ -112,6 +127,7 @@ export const COLORS = {
   trackCenterline: 0x2a2f4a,
   startLine: 0xf6f7ff,
   textPrimary: 0xf6f7ff,
+  textMid: 0xb4bce0,
   textDim: 0x8a90b8,
   accent: 0xff2e97,
   /** Per-car neon colors (up to 4 cars in the MVP). */
