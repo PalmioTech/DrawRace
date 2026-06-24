@@ -231,16 +231,17 @@ export class Car {
     }
   }
 
-  /** Scripted finish: roll forward decelerating while drifting hard, then stop. */
+  /** Scripted finish: a quick power-slide that stops right by the line. */
   private finishDrift(dt: number, track: Track): void {
     this.offTrack = false;
     this.sliding = true;
-    this.speed = Math.max(0, this.speed - 320 * dt);
+    // Brake hard so it stops within a short distance (no shooting off-screen).
+    this.speed = Math.max(0, this.speed - 1500 * dt);
 
-    // Roll forward and ease into a big sideways drift + yaw.
+    // Roll forward a little and snap into the drift quickly.
     this.finishBase = add(this.finishBase, scale(this.finishDir, this.speed * dt));
-    this.slide += (track.halfWidth * 0.95 - this.slide) * Math.min(1, 6 * dt);
-    this.finishYaw += (1.15 - this.finishYaw) * Math.min(1, 4 * dt);
+    this.slide += (track.halfWidth * 0.8 - this.slide) * Math.min(1, 14 * dt);
+    this.finishYaw += (1.0 - this.finishYaw) * Math.min(1, 12 * dt);
 
     const lateral = scale(perp(this.finishDir), this.finishSign * this.slide);
     this.pos = add(this.finishBase, lateral);
