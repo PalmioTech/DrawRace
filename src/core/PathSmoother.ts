@@ -3,7 +3,8 @@
  * Catmull-Rom spline followed by arc-length resampling.
  */
 import type { Vec2 } from './types';
-import { sampleOpenSpline, resampleByArcLength } from './Geometry';
+import { sampleOpenSpline, resampleByArcLength, smoothPoints } from './Geometry';
+import { SMOOTH } from '../config/constants';
 
 /**
  * @param raw     raw stroke positions
@@ -25,5 +26,8 @@ export function smoothAndResample(raw: Vec2[], spacing: number): Vec2[] {
     decimated.push(raw[raw.length - 1]);
   }
   const dense = sampleOpenSpline(decimated, 12);
-  return resampleByArcLength(dense, spacing);
+  const even = resampleByArcLength(dense, spacing);
+  // Extra moving-average pass: the spline alone still leaves finger jitter that
+  // produces noisy curvature (and a bouncing car). This flattens it.
+  return smoothPoints(even, SMOOTH.pathWindow);
 }

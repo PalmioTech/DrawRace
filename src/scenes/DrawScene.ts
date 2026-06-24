@@ -63,6 +63,21 @@ export class DrawScene extends Phaser.Scene {
     drawTrack(this.trackG, this.track);
     this.lineG = this.add.graphics().setDepth(10);
 
+    // Start marker: a pulsing dot at the start line so it's clear where the
+    // car begins and where to start drawing.
+    const sp = this.track.startPos;
+    const dot = this.add.circle(sp.x, sp.y, 11, COLORS.accent).setDepth(40);
+    const ring = this.add.circle(sp.x, sp.y, 11).setStrokeStyle(3, COLORS.accent, 0.9).setDepth(40);
+    this.tweens.add({
+      targets: ring,
+      scale: 2.2,
+      alpha: 0,
+      duration: 1100,
+      repeat: -1,
+      ease: 'Sine.Out',
+    });
+    void dot;
+
     this.title = this.add
       .text(DESIGN.width / 2, 28, '', {
         fontFamily: 'monospace',
@@ -150,11 +165,19 @@ export class DrawScene extends Phaser.Scene {
     this.validateStroke();
   }
 
-  /** Draw the in-progress stroke, colored by finger speed (feedback). */
+  /**
+   * Draw the in-progress stroke as a fading "comet": only the most recent
+   * segments are visible, older ones fade out. Keeps the 3 overlapping laps
+   * from turning into an unreadable tangle. Color encodes finger speed.
+   */
   private redrawPreview(): void {
     const raw = this.recorder.getRaw();
     this.lineG.clear();
-    for (let i = 1; i < raw.length; i++) {
+    const n = raw.length;
+    for (let i = 1; i < n; i++) {
+      const age = n - 1 - i; // 0 = newest
+      const fade = 1 - age / DRAW.fadeSegments;
+      if (fade <= 0) continue; // older than the visible window
       const a = raw[i - 1];
       const b = raw[i];
       const d = Math.hypot(b.x - a.x, b.y - a.y);
@@ -162,7 +185,7 @@ export class DrawScene extends Phaser.Scene {
       const speed = (d / dt) * 1000; // px/s
       const t = Phaser.Math.Clamp((speed - 150) / 1100, 0, 1);
       const col = lerpColor(COLORS.drawSlow, COLORS.drawFast, t);
-      this.lineG.lineStyle(7, Phaser.Display.Color.GetColor(col.r, col.g, col.b), 0.95);
+      this.lineG.lineStyle(7, Phaser.Display.Color.GetColor(col.r, col.g, col.b), 0.95 * fade);
       this.lineG.beginPath();
       this.lineG.moveTo(a.x, a.y);
       this.lineG.lineTo(b.x, b.y);

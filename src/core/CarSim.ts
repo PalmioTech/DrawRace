@@ -23,8 +23,10 @@ export class Car {
   s = 0;
   /** Current forward speed (px/s). */
   speed = 0;
-  /** Lateral slide offset (px) — positive pushes to the outside of corners. */
+  /** Lateral slide offset magnitude (px). */
   slide = 0;
+  /** Stable direction (±1) the slide pushes toward (outside of the corner). */
+  private slideSign = 1;
 
   /** Render position (centerline-of-path + slide). */
   pos: Vec2;
@@ -74,9 +76,9 @@ export class Car {
 
     const { p, target, curv, tangent } = this.sampleAt(this.s);
 
-    // --- Corner grip limit: vmax = sqrt(latAccel / curvature) -------------
-    const safeCurv = Math.max(curv, 1e-5);
-    const cornerMax = Math.sqrt(CAR.maxLatAccel / safeCurv);
+    // --- Corner grip limit: vmax = sqrt(latAccel / |curvature|) -----------
+    const curvAbs = Math.abs(curv);
+    const cornerMax = Math.sqrt(CAR.maxLatAccel / Math.max(curvAbs, 1e-5));
 
     // Off-track surface penalty.
     this.offTrack = !track.isOnTrack(this.pos);
@@ -85,21 +87,20 @@ export class Car {
     // Effective target this tick: requested speed, capped by grip + surface.
     const effTarget = Math.min(target, cornerMax) * surface;
 
-    // Excess of requested speed over the corner's grip → the player overcooked
-    // this corner: the car slides outward and loses extra speed.
+    // Over-speed for this corner → the player overcooked it: ease a bounded
+    // lateral slide toward a target offset, in a STABLE direction (sign of the
+    // smoothed curvature). No per-tick sign flips → no bouncing.
     const excess = Math.max(0, target - cornerMax);
-    this.sliding = excess > 1;
-    if (this.sliding) {
-      this.slide += excess * CAR.slideGain * dt;
-    }
-    this.slide = Math.max(0, this.slide - this.slide * CAR.slideDecay * dt);
+    this.sliding = excess > 4;
+    const slideTarget = Math.min(CAR.maxSlide, excess * CAR.slideGain);
+    this.slide += (slideTarget - this.slide) * Math.min(1, CAR.slideEase * dt);
 
     // Accelerate / brake toward the effective target.
     if (this.speed < effTarget) {
       this.speed = Math.min(effTarget, this.speed + CAR.accel * dt);
     } else {
       // Extra braking force when overcooking a corner (the penalty bites).
-      const brake = CAR.brake * (this.sliding ? 1.6 : 1);
+      const brake = CAR.brake * (this.sliding ? 1.5 : 1);
       this.speed = Math.max(effTarget, this.speed - brake * dt);
     }
     this.speed = Math.max(CAR.minSpeed * surface, this.speed);
@@ -107,10 +108,13 @@ export class Car {
     // Advance along the trajectory.
     this.s += this.speed * dt;
 
-    // Render position = path point pushed outward by the current slide.
-    const turnSign = curv > 1e-5 ? this.turnSign(this.s) : 0;
-    const outward = scale(perp(tangent), -turnSign); // outside of the corner
-    this.pos = add(p, scale(outward, this.slide));
+    // Stable slide direction: outside of the corner = opposite the turn side.
+    if (curvAbs > 1e-4) this.slideSign = -Math.sign(curv);
+    const outward = scale(perp(tangent), this.slideSign);
+    const wanted = add(p, scale(outward, this.slide));
+
+    // Low-pass the rendered position so any residual noise can't snap the car.
+    this.pos = add(this.pos, scale(sub(wanted, this.pos), CAR.renderSmooth));
     this.dir = tangent;
 
     // Update centerline progress for ranking / lap display.
@@ -122,14 +126,6 @@ export class Car {
       this.finishTime = time;
       this.s = this.traj.length;
     }
-  }
-
-  /** Sign of the local turn (+1 left, -1 right) from neighbouring tangents. */
-  private turnSign(s: number): number {
-    const a = this.sampleAt(Math.max(0, s - this.traj.spacing)).tangent;
-    const b = this.sampleAt(s).tangent;
-    const cross = a.x * b.y - a.y * b.x;
-    return Math.sign(cross) || 1;
   }
 
   /** Track-centerline progress with lap wrap detection. */

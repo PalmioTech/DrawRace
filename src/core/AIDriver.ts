@@ -6,8 +6,8 @@
  */
 import type { Trajectory, Vec2, Difficulty } from './types';
 import type { Track } from './Track';
-import { computeCurvatures } from './Geometry';
-import { CAR, LAPS, PATH_SPACING } from '../config/constants';
+import { computeCurvatures, smoothScalars } from './Geometry';
+import { CAR, LAPS, PATH_SPACING, SMOOTH } from '../config/constants';
 
 interface DiffParams {
   /** Fraction of the grip-limited corner speed the AI dares (≤1 safe). */
@@ -64,12 +64,12 @@ export function buildAITrajectory(track: Track, difficulty: Difficulty, seed: nu
     points.push({ x: base.x + nx * apexBias, y: base.y + ny * apexBias });
   }
 
-  const curvatures = computeCurvatures(points, spacing);
+  const curvatures = smoothScalars(computeCurvatures(points, spacing), SMOOTH.curvatureWindow);
 
   // Choose target speeds from the corner-grip limit, scaled by aggression, with
   // occasional deliberate overshoots (mistakes).
   const speeds: number[] = points.map((_, i) => {
-    const curv = Math.max(curvatures[i], 1e-5);
+    const curv = Math.max(Math.abs(curvatures[i]), 1e-5);
     const cornerMax = Math.sqrt(CAR.maxLatAccel / curv);
     let target = Math.min(CAR.maxSpeed, cornerMax) * p.aggression;
     if (rand() < p.errorRate) {

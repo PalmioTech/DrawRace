@@ -7,8 +7,8 @@
  */
 import type { TimedPoint, Trajectory, Vec2 } from './types';
 import { smoothAndResample } from './PathSmoother';
-import { computeCurvatures, cumulativeLengths } from './Geometry';
-import { CAR, DRAW } from '../config/constants';
+import { computeCurvatures, cumulativeLengths, smoothScalars } from './Geometry';
+import { CAR, DRAW, SMOOTH } from '../config/constants';
 
 /** Clamp helper. */
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -50,10 +50,10 @@ export function buildHumanTrajectory(raw: TimedPoint[], spacing: number): Trajec
     speeds[i] = clamp(fingerSpeed * DRAW.speedGain, CAR.minSpeed, CAR.maxSpeed);
   }
 
-  const curvatures = computeCurvatures(points, spacing);
+  const curvatures = smoothScalars(computeCurvatures(points, spacing), SMOOTH.curvatureWindow);
   return {
     points,
-    speeds,
+    speeds: smoothScalars(speeds, 2),
     curvatures,
     spacing,
     length: (points.length - 1) * spacing,

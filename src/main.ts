@@ -14,6 +14,8 @@ import { Track } from './core/Track';
 import { Car } from './core/CarSim';
 import { RaceEngine } from './core/RaceEngine';
 import { buildAITrajectory } from './core/AIDriver';
+import { buildHumanTrajectory } from './core/SpeedProfile';
+import { PATH_SPACING } from './config/constants';
 import { NEON_LOOP } from './data/tracks';
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -57,8 +59,59 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     __game: Phaser.Game;
     __smoke: () => unknown;
     __raceDemo: () => void;
+    __jitterTest: () => unknown;
   };
   w.__game = game;
+  // Build a NOISY human-like stroke (3 laps round the centerline with random
+  // lateral wobble + irregular timing), run it through the real pipeline, and
+  // measure how often the car's motion direction sharply reverses — the
+  // signature of the "bouncing" bug. Low flip rate = smooth.
+  w.__jitterTest = () => {
+    const track = new Track(NEON_LOOP);
+    const raw: { x: number; y: number; t: number }[] = [];
+    let t = 0;
+    let seed = 12345;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    for (let s = 0; s < track.length * 3; s += 9) {
+      const c = track.pointAt(s);
+      const tan = track.tangentAt(s);
+      const nx = -tan.y;
+      const ny = tan.x;
+      const wob = (rnd() - 0.5) * 26; // jittery finger, ±13px
+      raw.push({ x: c.x + nx * wob, y: c.y + ny * wob, t });
+      t += 12 + rnd() * 26; // irregular timing
+    }
+    const traj = buildHumanTrajectory(raw, PATH_SPACING);
+    const car = new Car(0, 'human', 'P1', 0x2de2e6, traj, track);
+    const pts: { x: number; y: number }[] = [];
+    let frames = 0;
+    while (!car.finished && frames < 60 * 120) {
+      car.update(1 / 60, track, frames / 60);
+      pts.push({ ...car.pos });
+      frames++;
+    }
+    // Fraction of consecutive movement vectors that reverse > 90°.
+    let flips = 0;
+    let maxJump = 0;
+    for (let i = 2; i < pts.length; i++) {
+      const a = { x: pts[i - 1].x - pts[i - 2].x, y: pts[i - 1].y - pts[i - 2].y };
+      const b = { x: pts[i].x - pts[i - 1].x, y: pts[i].y - pts[i - 1].y };
+      const la = Math.hypot(a.x, a.y);
+      const lb = Math.hypot(b.x, b.y);
+      maxJump = Math.max(maxJump, lb);
+      if (la > 0.5 && lb > 0.5) {
+        const cos = (a.x * b.x + a.y * b.y) / (la * lb);
+        if (cos < 0) flips++; // > 90° direction reversal
+      }
+    }
+    return {
+      finished: car.finished,
+      samples: pts.length,
+      sharpFlips: flips,
+      flipRate: +(flips / pts.length).toFixed(4),
+      maxStepPx: +maxJump.toFixed(1),
+    };
+  };
   // Jump straight into a 4-car AI race to eyeball the RaceScene rendering.
   w.__raceDemo = () => {
     const track = new Track(NEON_LOOP);

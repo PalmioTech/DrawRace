@@ -122,7 +122,11 @@ export function resampleByArcLength(dense: Vec2[], spacing: number): Vec2[] {
   return out;
 }
 
-/** Discrete curvature (1/radius) at each point of an evenly spaced polyline. */
+/**
+ * SIGNED discrete curvature at each point of an evenly spaced polyline.
+ * Sign encodes turn direction (+ left / − right); magnitude ≈ 1/radius.
+ * Use Math.abs() when you only need the corner tightness.
+ */
 export function computeCurvatures(points: Vec2[], spacing: number): number[] {
   const n = points.length;
   const curv = new Array(n).fill(0);
@@ -137,13 +141,56 @@ export function computeCurvatures(points: Vec2[], spacing: number): number[] {
     const dot = a.x * b.x + a.y * b.y;
     const angle = Math.atan2(cross, dot);
     // curvature ≈ angle / arc length over the two half-segments.
-    curv[i] = Math.abs(angle) / spacing;
+    curv[i] = angle / spacing;
   }
   if (n > 1) {
     curv[0] = curv[1];
     curv[n - 1] = curv[n - 2];
   }
   return curv;
+}
+
+/** Moving-average smoothing of a scalar array over a ±w window. */
+export function smoothScalars(values: number[], w: number): number[] {
+  if (w <= 0) return values.slice();
+  const out = new Array(values.length).fill(0);
+  for (let i = 0; i < values.length; i++) {
+    let sum = 0;
+    let count = 0;
+    for (let k = -w; k <= w; k++) {
+      const j = i + k;
+      if (j >= 0 && j < values.length) {
+        sum += values[j];
+        count++;
+      }
+    }
+    out[i] = sum / count;
+  }
+  return out;
+}
+
+/**
+ * Moving-average smoothing of a polyline's positions over a ±w window.
+ * Endpoints are kept fixed so the line still starts/ends where drawn.
+ */
+export function smoothPoints(points: Vec2[], w: number): Vec2[] {
+  if (w <= 0 || points.length < 3) return points.slice();
+  const out: Vec2[] = points.map((p) => ({ ...p }));
+  for (let i = 1; i < points.length - 1; i++) {
+    let sx = 0;
+    let sy = 0;
+    let count = 0;
+    for (let k = -w; k <= w; k++) {
+      const j = i + k;
+      if (j >= 0 && j < points.length) {
+        sx += points[j].x;
+        sy += points[j].y;
+        count++;
+      }
+    }
+    out[i] = { x: sx / count, y: sy / count };
+  }
+  return out;
 }
 
 export interface Projection {
