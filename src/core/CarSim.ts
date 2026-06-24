@@ -37,6 +37,12 @@ export class Car {
 
   finished = false;
   finishTime = 0;
+  /** Doing the celebratory finish-line power-slide (still moving). */
+  private finishing = false;
+  private finishDir: Vec2 = { x: 1, y: 0 };
+  private finishBase: Vec2 = { x: 0, y: 0 };
+  private finishSign = 1;
+  private finishYaw = 0;
 
   /** Eliminated after too many off-track excursions. */
   eliminated = false;
@@ -100,6 +106,10 @@ export class Car {
   /** Advance one fixed timestep. */
   update(dt: number, track: Track, time: number): void {
     if (this.finished || this.traj.points.length < 2) return;
+    if (this.finishing) {
+      this.finishDrift(dt, track);
+      return;
+    }
 
     const st = this.stats;
     const { p, target, curv, tangent } = this.sampleAt(this.s);
@@ -208,10 +218,42 @@ export class Car {
     }
     this.prevPos = { ...this.pos };
 
+    // Crossed the finish line for the LAPS-th time (or ran out of line): record
+    // the time for ranking and kick off a celebratory power-slide to a stop
+    // (the car keeps moving and drifts instead of freezing on the line).
     if (this.crossings >= LAPS || this.s >= this.traj.length) {
-      this.finished = true;
+      this.finishing = true;
       this.finishTime = time;
+      this.finishDir = tangent;
+      this.finishBase = { ...this.pos };
+      this.finishSign = this.slideSign || 1;
+      this.finishYaw = 0;
     }
+  }
+
+  /** Scripted finish: roll forward decelerating while drifting hard, then stop. */
+  private finishDrift(dt: number, track: Track): void {
+    this.offTrack = false;
+    this.sliding = true;
+    this.speed = Math.max(0, this.speed - 320 * dt);
+
+    // Roll forward and ease into a big sideways drift + yaw.
+    this.finishBase = add(this.finishBase, scale(this.finishDir, this.speed * dt));
+    this.slide += (track.halfWidth * 0.95 - this.slide) * Math.min(1, 6 * dt);
+    this.finishYaw += (1.15 - this.finishYaw) * Math.min(1, 4 * dt);
+
+    const lateral = scale(perp(this.finishDir), this.finishSign * this.slide);
+    this.pos = add(this.finishBase, lateral);
+
+    const ang = this.finishSign * this.finishYaw;
+    const ca = Math.cos(ang);
+    const sa = Math.sin(ang);
+    this.dir = {
+      x: this.finishDir.x * ca - this.finishDir.y * sa,
+      y: this.finishDir.x * sa + this.finishDir.y * ca,
+    };
+
+    if (this.speed <= 12) this.finished = true;
   }
 
   /** Track-centerline progress with lap wrap detection. */
