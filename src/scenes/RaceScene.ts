@@ -28,6 +28,7 @@ export class RaceScene extends Phaser.Scene {
   private hud!: Hud;
   private carsG!: Phaser.GameObjects.Graphics;
   private trails = new Map<number, Vec2[]>();
+  private eliminatedShown = new Set<number>();
   private started = false;
   private done = false;
 
@@ -49,6 +50,7 @@ export class RaceScene extends Phaser.Scene {
     this.started = false;
     this.done = false;
     this.trails.clear();
+    this.eliminatedShown.clear();
 
     const g = this.add.graphics();
     drawTrack(g, track);
@@ -110,6 +112,14 @@ export class RaceScene extends Phaser.Scene {
     const g = this.carsG;
     g.clear();
     for (const car of this.payload.cars) {
+      // Eliminated: car is removed from the track. Flash "ELIMINATO" once.
+      if (car.eliminated) {
+        if (!this.eliminatedShown.has(car.id)) {
+          this.eliminatedShown.add(car.id);
+          this.flashEliminated(car.pos.x, car.pos.y, car.color);
+        }
+        continue;
+      }
       const hist = this.trails.get(car.id)!;
       if (this.started) {
         hist.push({ ...car.pos });
@@ -146,6 +156,22 @@ export class RaceScene extends Phaser.Scene {
     }
   }
 
+  /** One-shot "ELIMINATO" burst where a car left the race. */
+  private flashEliminated(x: number, y: number, color: number): void {
+    const burst = this.add.circle(x, y, CAR.radius + 4, color, 0.9).setDepth(80);
+    this.tweens.add({ targets: burst, scale: 2.4, alpha: 0, duration: 450, onComplete: () => burst.destroy() });
+    const label = this.add
+      .text(x, y - 24, 'ELIMINATO', {
+        fontFamily: 'monospace',
+        fontSize: '20px',
+        color: hex(COLORS.accent),
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(81);
+    this.tweens.add({ targets: label, y: y - 60, alpha: 0, duration: 1100, onComplete: () => label.destroy() });
+  }
+
   private finish(): void {
     const ranking = this.engine.ranking();
     const results = ranking.map((e) => ({
@@ -154,8 +180,12 @@ export class RaceScene extends Phaser.Scene {
       position: e.position,
       finishTime: e.car.finishTime,
       kind: e.car.kind,
+      eliminated: e.car.eliminated,
     }));
-    const humanTimes = this.payload.cars.filter((c) => c.kind === 'human').map((c) => c.finishTime);
+    // Only real (non-eliminated) human finishes count toward the best time.
+    const humanTimes = this.payload.cars
+      .filter((c) => c.kind === 'human' && !c.eliminated)
+      .map((c) => c.finishTime);
     const humanBest = humanTimes.length ? Math.min(...humanTimes) : 0;
 
     this.time.delayedCall(600, () => {

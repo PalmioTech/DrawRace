@@ -50,6 +50,10 @@ export const CAR = {
   renderSmooth: 0.3,
   /** Speed multiplier while off the track surface (grass/sand). */
   offTrackGrip: 0.6,
+  /** Number of off-track excursions before a car is eliminated. */
+  eliminateAfterOffRuns: 2,
+  /** Min on-track distance (px) between counted excursions (debounces edge jitter). */
+  minOnGapPx: 70,
   /** Visual radius of a car. */
   radius: 13,
 } as const;

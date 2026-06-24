@@ -16,6 +16,7 @@ interface ResultRow {
   position: number;
   finishTime: number;
   kind: RacerKind;
+  eliminated: boolean;
 }
 
 interface ResultData {
@@ -73,10 +74,10 @@ export class ResultScene extends Phaser.Scene {
         })
         .setOrigin(0, 0.5);
       this.add
-        .text(cx + 200, y, `${r.finishTime.toFixed(2)}s`, {
+        .text(cx + 200, y, r.eliminated ? 'ELIMINATO' : `${r.finishTime.toFixed(2)}s`, {
           fontFamily: 'monospace',
-          fontSize: '30px',
-          color: hex(COLORS.textPrimary),
+          fontSize: r.eliminated ? '22px' : '30px',
+          color: hex(r.eliminated ? COLORS.accent : COLORS.textPrimary),
         })
         .setOrigin(1, 0.5);
     });

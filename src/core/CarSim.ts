@@ -36,6 +36,14 @@ export class Car {
   finished = false;
   finishTime = 0;
 
+  /** Eliminated after too many off-track excursions. */
+  eliminated = false;
+  /** Count of distinct off-track excursions. */
+  private offRuns = 0;
+  private wasOff = false;
+  /** On-track distance accumulated since the last excursion ended. */
+  private onDist = 0;
+
   // --- centerline progress (for ranking + lap display) ---
   private centerLap = 0;
   private prevCenterFrac = 0;
@@ -80,8 +88,33 @@ export class Car {
     const curvAbs = Math.abs(curv);
     const cornerMax = Math.sqrt(CAR.maxLatAccel / Math.max(curvAbs, 1e-5));
 
-    // Off-track surface penalty.
-    this.offTrack = !track.isOnTrack(this.pos);
+    // Off-track surface penalty + excursion counting, with HYSTERESIS: the car
+    // goes "off" when it crosses the border, but only re-arms (can count a new
+    // excursion) after it returns WELL inside the track. This stops a single
+    // swerve — which wiggles across the border a few times — from counting as
+    // several. A min on-track distance further debounces.
+    // Use the clean PATH point (not the slide-distorted render position) so a
+    // single smooth swerve is one excursion, not several.
+    const dCenter = track.project(p).dist;
+    const half = track.halfWidth;
+    if (!this.wasOff) {
+      this.onDist += this.speed * dt;
+      if (dCenter > half) {
+        if (this.onDist >= CAR.minOnGapPx) this.offRuns++;
+        this.wasOff = true;
+        this.onDist = 0;
+      }
+    } else if (dCenter < half * 0.6) {
+      this.wasOff = false; // back well inside → ready to count the next one
+    }
+    this.offTrack = this.wasOff;
+    if (this.offRuns >= CAR.eliminateAfterOffRuns) {
+      // Too many off-track runs → out of the race.
+      this.eliminated = true;
+      this.finished = true;
+      this.speed = 0;
+      return;
+    }
     const surface = this.offTrack ? CAR.offTrackGrip : 1;
 
     // Effective target this tick: requested speed, capped by grip + surface.

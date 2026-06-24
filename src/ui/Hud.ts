@@ -56,9 +56,13 @@ export class Hud {
       const t = this.rankTexts[i];
       if (!t) return;
       const c = entry.car;
-      const status = c.finished ? c.finishTime.toFixed(2) + 's' : `lap ${c.displayLap(LAPS)}`;
+      const status = c.eliminated
+        ? 'eliminato'
+        : c.finished
+          ? c.finishTime.toFixed(2) + 's'
+          : `lap ${c.displayLap(LAPS)}`;
       t.setText(`${entry.position}. ${c.label}  ${status}`);
-      t.setColor(hex(c.color));
+      t.setColor(c.eliminated ? hex(COLORS.accent) : hex(c.color));
     });
   }
 }
