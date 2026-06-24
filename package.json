@@ -1,0 +1,18 @@
+{
+  "name": "project-racing",
+  "version": "0.1.0",
+  "description": "Draw-to-race arcade mobile game (MVP). Working name: Project Racing.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.0"
+  }
+}
