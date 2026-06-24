@@ -69,6 +69,9 @@ export class Car {
     this.traj = traj;
     this.stats = stats;
     this.pos = traj.points.length ? { ...traj.points[0] } : { x: 0, y: 0 };
+    // Face the direction the car will set off in (so sprites point forward on
+    // the grid, not toward the start line).
+    if (traj.points.length >= 2) this.dir = normalize(sub(traj.points[1], traj.points[0]));
     this.speed = stats.minSpeed * 0.5;
     this.prevCenterFrac = track.project(this.pos).s / track.length;
   }
@@ -138,9 +141,11 @@ export class Car {
     // sharpness (sharp corner = low cornerMax = bigger excess for the same
     // drawn speed), so a sharp corner taken too fast drifts wide while a gentle
     // one barely slips — proportional, as designed.
+    // Slide only ON track. Off track the car just slows down (surface penalty);
+    // any slide eases back to the line so it doesn't stutter out there.
     const excess = Math.max(0, target - cornerMax);
-    this.sliding = excess > 1.5;
-    const slideTarget = Math.min(st.maxSlide, excess * st.slideGain);
+    this.sliding = !this.offTrack && excess > 1.5;
+    const slideTarget = this.offTrack ? 0 : Math.min(st.maxSlide, excess * st.slideGain);
     this.slide += (slideTarget - this.slide) * Math.min(1, st.slideEase * dt);
 
     // Accelerate / brake toward the effective target.

@@ -61,11 +61,11 @@ export const CAR = {
    * corner sharpness is already inherent: a sharp corner has a low max corner
    * speed, so the same drawn speed produces a larger over-speed → more slide.
    */
-  slideGain: 0.3,
+  slideGain: 0.18,
   /** How fast the slide offset eases toward its target (per-second rate). */
   slideEase: 5,
   /** Max lateral slide offset (px) — big overcooks can drift right off the track. */
-  maxSlide: 95,
+  maxSlide: 60,
   /** Low-pass factor for the rendered position (0..1 per tick). Lower = smoother. */
   renderSmooth: 0.22,
   /** Speed multiplier while off the track surface (grass/sand). */
