@@ -40,9 +40,8 @@ export class Car {
   /** Doing the celebratory finish-line power-slide (still moving). */
   private finishing = false;
   private finishDir: Vec2 = { x: 1, y: 0 };
-  private finishBase: Vec2 = { x: 0, y: 0 };
+  private finishTarget: Vec2 = { x: 0, y: 0 };
   private finishSign = 1;
-  private finishYaw = 0;
 
   /** Eliminated after too many off-track excursions. */
   eliminated = false;
@@ -107,7 +106,7 @@ export class Car {
   update(dt: number, track: Track, time: number): void {
     if (this.finished || this.traj.points.length < 2) return;
     if (this.finishing) {
-      this.finishDrift(dt, track);
+      this.finishDrift(dt);
       return;
     }
 
@@ -224,29 +223,33 @@ export class Car {
     if (this.crossings >= LAPS || this.s >= this.traj.length) {
       this.finishing = true;
       this.finishTime = time;
-      this.finishDir = tangent;
-      this.finishBase = { ...this.pos };
       this.finishSign = this.slideSign || 1;
-      this.finishYaw = 0;
+      // Park spot: ON the track at the finish line, staggered per car so they
+      // don't pile up — distinct lateral lane + a step back along the straight.
+      this.finishDir = track.startDir;
+      const fwd = 18 - this.id * 26;
+      const lat = (this.id - 1.5) * track.halfWidth * 0.5;
+      this.finishTarget = add(
+        track.startPos,
+        add(scale(track.startDir, fwd), scale(perp(track.startDir), lat)),
+      );
     }
   }
 
-  /** Scripted finish: a quick power-slide that stops right by the line. */
-  private finishDrift(dt: number, track: Track): void {
+  /** Scripted finish: drift to a staggered park spot on the track, then stop. */
+  private finishDrift(dt: number): void {
     this.offTrack = false;
-    this.sliding = true;
-    // Brake hard so it stops within a short distance (no shooting off-screen).
-    this.speed = Math.max(0, this.speed - 1500 * dt);
+    const toT = sub(this.finishTarget, this.pos);
+    const d = Math.hypot(toT.x, toT.y);
 
-    // Roll forward a little and snap into the drift quickly.
-    this.finishBase = add(this.finishBase, scale(this.finishDir, this.speed * dt));
-    this.slide += (track.halfWidth * 0.8 - this.slide) * Math.min(1, 14 * dt);
-    this.finishYaw += (1.0 - this.finishYaw) * Math.min(1, 12 * dt);
+    // Ease toward the park spot (quick), report a speed for the HUD.
+    this.pos = add(this.pos, scale(toT, Math.min(1, 9 * dt)));
+    this.speed = d * 6;
 
-    const lateral = scale(perp(this.finishDir), this.finishSign * this.slide);
-    this.pos = add(this.finishBase, lateral);
-
-    const ang = this.finishSign * this.finishYaw;
+    // Drift yaw while still moving in, straighten as it parks.
+    const phase = Math.min(1, d / 45);
+    this.sliding = phase > 0.25;
+    const ang = this.finishSign * 0.9 * phase;
     const ca = Math.cos(ang);
     const sa = Math.sin(ang);
     this.dir = {
@@ -254,7 +257,11 @@ export class Car {
       y: this.finishDir.x * sa + this.finishDir.y * ca,
     };
 
-    if (this.speed <= 12) this.finished = true;
+    if (d < 1.5) {
+      this.finished = true;
+      this.speed = 0;
+      this.pos = { ...this.finishTarget };
+    }
   }
 
   /** Track-centerline progress with lap wrap detection. */
