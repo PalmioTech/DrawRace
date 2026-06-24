@@ -67,6 +67,7 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     __recorderTest: () => unknown;
     __elimTest: (bumps?: number) => unknown;
     __statsTest: () => unknown;
+    __slideTest: (dtMs: number) => unknown;
   };
   w.__game = game;
   // Verify stat resolution + AI loadout validity.
@@ -96,6 +97,29 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       aiLoadoutsAlwaysValid: aiValid,
       sampleAi: { easy: aiLoadout('easy', 5), hard: aiLoadout('hard', 5) },
     };
+  };
+  // Draw a CLEAN centerline lap at a given finger speed (smaller dtMs = faster
+  // finger) and report peak slide — to check "fast = more slide".
+  w.__slideTest = (dtMs: number) => {
+    const track = new Track(NEON_LOOP);
+    const raw: { x: number; y: number; t: number }[] = [];
+    let t = 0;
+    for (let s = 0; s < track.length * 3; s += 8) {
+      const c = track.pointAt(s);
+      raw.push({ x: c.x, y: c.y, t });
+      t += dtMs;
+    }
+    const traj = buildHumanTrajectory(raw, PATH_SPACING, baseStats());
+    const car = new Car(0, 'human', 'P1', 0x2de2e6, traj, track, baseStats());
+    const peek = car as unknown as { slide: number };
+    let maxSlide = 0;
+    let frames = 0;
+    while (!car.finished && frames < 60 * 120) {
+      car.update(1 / 60, track, frames / 60);
+      maxSlide = Math.max(maxSlide, peek.slide);
+      frames++;
+    }
+    return { dtMs, maxSlidePx: +maxSlide.toFixed(1), eliminated: car.eliminated, time: +(frames / 60).toFixed(1) };
   };
   // Build a stroke that deliberately swerves far OFF the track twice and verify
   // the car gets eliminated, stops early, and ranks last.

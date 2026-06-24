@@ -52,20 +52,21 @@ export const CAR = {
   accel: 560,
   brake: 1000,
   /**
-   * Lateral grip budget. Max speed through a corner of radius R is
-   * sqrt(maxLatAccel * R). Lower = must slow more for corners.
+   * Lateral grip budget. Max safe speed through a corner of radius R is
+   * sqrt(maxLatAccel * R). Lower = must slow more for corners → going fast
+   * overshoots more → more slide (fast = risky).
    */
-  maxLatAccel: 950,
+  maxLatAccel: 680,
   /**
    * Lateral slide (px) per px/s of over-speed in a corner. Proportionality to
    * corner sharpness is already inherent: a sharp corner has a low max corner
    * speed, so the same drawn speed produces a larger over-speed → more slide.
    */
-  slideGain: 0.18,
+  slideGain: 0.26,
   /** How fast the slide offset eases toward its target (per-second rate). */
   slideEase: 5,
   /** Max lateral slide offset (px) — big overcooks can drift right off the track. */
-  maxSlide: 60,
+  maxSlide: 80,
   /** Low-pass factor for the rendered position (0..1 per tick). Lower = smoother. */
   renderSmooth: 0.22,
   /** Speed multiplier while off the track surface (grass/sand). */
