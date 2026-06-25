@@ -53,8 +53,7 @@ export class RaceScene extends Phaser.Scene {
     this.eliminatedShown.clear();
     this.sprites.clear();
 
-    const g = this.add.graphics();
-    drawTrack(g, track);
+    drawTrack(this, track);
 
     this.carsG = this.add.graphics().setDepth(20);
     cars.forEach((c) => {

@@ -34,7 +34,6 @@ export class DrawScene extends Phaser.Scene {
   private drawing = false;
   private pendingTraj: Trajectory | null = null;
 
-  private trackG!: Phaser.GameObjects.Graphics;
   private lineG!: Phaser.GameObjects.Graphics;
   private title!: Phaser.GameObjects.Text;
   private hint!: Phaser.GameObjects.Text;
@@ -53,24 +52,12 @@ export class DrawScene extends Phaser.Scene {
     this.track = new Track(NEON_LOOP);
     this.recorder = new PathRecorder(this.track);
 
-    this.trackG = this.add.graphics();
-    drawTrack(this.trackG, this.track);
+    drawTrack(this, this.track);
     this.lineG = this.add.graphics().setDepth(10);
 
     // Start marker: a pulsing dot at the start line so it's clear where the
     // car begins and where to start drawing.
-    const sp = this.track.startPos;
-    const dot = this.add.circle(sp.x, sp.y, 11, COLORS.accent).setDepth(40);
-    const ring = this.add.circle(sp.x, sp.y, 11).setStrokeStyle(3, COLORS.accent, 0.9).setDepth(40);
-    this.tweens.add({
-      targets: ring,
-      scale: 2.2,
-      alpha: 0,
-      duration: 1100,
-      repeat: -1,
-      ease: 'Sine.Out',
-    });
-    void dot;
+    this.drawStartMarker();
 
     this.title = this.add
       .text(DESIGN.width / 2, 22, '', displayStyle(30, COLORS.textPrimary, '700'))
@@ -110,6 +97,31 @@ export class DrawScene extends Phaser.Scene {
     this.resetStroke();
     const label = CAR_LABELS[this.build.currentHuman] ?? `P${this.build.currentHuman + 1}`;
     this.title.setText(`${label} — draw your line`);
+  }
+
+  /** Start marker: a dot with direction chevrons showing which way to set off. */
+  private drawStartMarker(): void {
+    const sp = this.track.startPos;
+    const dir = this.track.startDir;
+    const ang = Math.atan2(dir.y, dir.x);
+
+    this.add.circle(sp.x, sp.y, 15, 0xffffff, 0.95).setStrokeStyle(3, 0x141414, 1).setDepth(40);
+
+    // Direction chevrons (»), drawn pointing +x then rotated to startDir.
+    const arrow = this.add.graphics().setDepth(41);
+    arrow.lineStyle(4, COLORS.accent, 1);
+    for (let i = 0; i < 3; i++) {
+      const ox = 7 + i * 9;
+      arrow.beginPath();
+      arrow.moveTo(ox - 5, -7);
+      arrow.lineTo(ox + 2, 0);
+      arrow.lineTo(ox - 5, 7);
+      arrow.strokePath();
+    }
+    arrow.setPosition(sp.x, sp.y).setRotation(ang);
+
+    const ring = this.add.circle(sp.x, sp.y, 15).setStrokeStyle(3, COLORS.accent, 0.9).setDepth(40);
+    this.tweens.add({ targets: ring, scale: 2, alpha: 0, duration: 1100, repeat: -1, ease: 'Sine.Out' });
   }
 
   private resetStroke(): void {

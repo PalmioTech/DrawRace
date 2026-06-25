@@ -116,8 +116,8 @@ export class Track {
     return normalize(sub(b, a));
   }
 
-  /** Left + right border polylines for rendering. */
-  borders(): { left: Vec2[]; right: Vec2[] } {
+  /** Left + right border polylines for rendering, at a given half-width. */
+  borders(width: number = this.halfWidth): { left: Vec2[]; right: Vec2[] } {
     const left: Vec2[] = [];
     const right: Vec2[] = [];
     const n = this.center.length;
@@ -125,7 +125,7 @@ export class Track {
       const a = this.center[i];
       const b = this.center[(i + 1) % n];
       const dir = normalize(sub(b, a));
-      const off = scale(perp(dir), this.halfWidth);
+      const off = scale(perp(dir), width);
       left.push(add(a, off));
       right.push(sub(a, off));
     }
