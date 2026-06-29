@@ -62,20 +62,24 @@ export const CAR = {
    * corner sharpness is already inherent: a sharp corner has a low max corner
    * speed, so the same drawn speed produces a larger over-speed → more slide.
    */
-  slideGain: 0.26,
+  slideGain: 0.18,
   /** Curvature below this counts as a straight → NO slide (just accelerate). */
-  cornerSlideMin: 0.0022,
+  cornerSlideMin: 0.004,
   /** Curvature at/above this is a full corner → slide at full strength. */
-  cornerSlideFull: 0.0045,
+  cornerSlideFull: 0.009,
+  /** Min over-speed (px/s, plus a fraction of corner speed) before any drift. */
+  driftSpeedMargin: 28,
+  /** Corner-sharpness factor must exceed this for any drift (both conditions). */
+  driftCornerMin: 0.2,
   /** How fast the slide builds toward its target (per-second rate). */
   slideEase: 5,
   /** How fast the slide returns to the line when recovering (faster = snappier
    * straighten-out, so the car doesn't keep drifting on the straight). */
   slideRecover: 16,
   /** Max lateral slide offset (px) — big overcooks can drift right off the track. */
-  maxSlide: 90,
+  maxSlide: 50,
   /** Max yaw angle (rad) the car rotates while fully sliding (drift look). */
-  driftMaxAngle: 0.75,
+  driftMaxAngle: 0.45,
   /** Low-pass factor for the rendered position (0..1 per tick). Lower = smoother. */
   renderSmooth: 0.22,
   /** Speed multiplier while off the track surface (grass/sand). */

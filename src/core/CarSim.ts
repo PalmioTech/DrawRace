@@ -150,22 +150,22 @@ export class Car {
       ? Math.min(target, CAR.offTrackMaxSpeed)
       : Math.min(target, cornerMax);
 
-    // Over-speed for this corner → the player overcooked it: ease a bounded
-    // lateral slide toward a target offset, in a STABLE direction (sign of the
-    // smoothed curvature). No per-tick sign flips → no bouncing.
-    // Over-speed for this corner → slide. `excess` already scales with corner
-    // sharpness (sharp corner = low cornerMax = bigger excess for the same
-    // drawn speed), so a sharp corner taken too fast drifts wide while a gentle
-    // one barely slips — proportional, as designed.
-    // Slide happens only in CORNERS (not on straights) and only ON track. On a
-    // straight the car just accelerates; off track it just slows (surface).
+    // Drift only when BOTH the steering is sharp AND the speed is well over the
+    // corner limit. Otherwise the race stays linear: straights and gentle/well-
+    // judged corners produce no slide, just a smooth slow-down to the limit.
     const cornerFactor = Math.max(
       0,
       Math.min(1, (curvAbs - CAR.cornerSlideMin) / (CAR.cornerSlideFull - CAR.cornerSlideMin)),
     );
     const excess = Math.max(0, target - cornerMax);
-    this.sliding = !this.offTrack && cornerFactor > 0 && excess > 1.5;
-    const slideTarget = this.offTrack ? 0 : Math.min(st.maxSlide, excess * st.slideGain) * cornerFactor;
+    const overMargin = CAR.driftSpeedMargin + cornerMax * 0.06;
+    const drifting =
+      !this.offTrack && cornerFactor >= CAR.driftCornerMin && excess > overMargin;
+    this.sliding = drifting;
+    // Slide scales with how far past the margin you are, and corner sharpness.
+    const slideTarget = drifting
+      ? Math.min(st.maxSlide, (excess - overMargin) * st.slideGain) * cornerFactor
+      : 0;
     // Build up gradually, but recover (return to the line) quickly so the car
     // straightens out as soon as the corner ends.
     const rate = slideTarget >= this.slide ? st.slideEase : CAR.slideRecover;
