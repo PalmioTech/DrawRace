@@ -40,8 +40,10 @@ export class Car {
   /** Doing the celebratory finish-line power-slide (still moving). */
   private finishing = false;
   private finishDir: Vec2 = { x: 1, y: 0 };
+  private finishStart: Vec2 = { x: 0, y: 0 };
   private finishTarget: Vec2 = { x: 0, y: 0 };
   private finishSign = 1;
+  private finishProgress = 0;
 
   /** Eliminated after too many off-track excursions. */
   eliminated = false;
@@ -159,13 +161,13 @@ export class Car {
     );
     const excess = Math.max(0, target - cornerMax);
     const overMargin = CAR.driftSpeedMargin + cornerMax * 0.06;
-    const drifting =
-      !this.offTrack && cornerFactor >= CAR.driftCornerMin && excess > overMargin;
-    this.sliding = drifting;
-    // Slide scales with how far past the margin you are, and corner sharpness.
-    const slideTarget = drifting
-      ? Math.min(st.maxSlide, (excess - overMargin) * st.slideGain) * cornerFactor
-      : 0;
+    // SMOOTH gates (0..1) instead of on/off, so the drift fades in/out without
+    // stuttering near the thresholds.
+    const cornerGate = Math.max(0, Math.min(1, (cornerFactor - CAR.driftCornerMin) / (1 - CAR.driftCornerMin)));
+    const overGate = Math.max(0, Math.min(1, (excess - overMargin) / overMargin));
+    const drift = this.offTrack ? 0 : cornerGate * overGate;
+    this.sliding = drift > 0.12;
+    const slideTarget = Math.min(st.maxSlide, excess * st.slideGain) * drift;
     // Build up gradually, but recover (return to the line) quickly so the car
     // straightens out as soon as the corner ends.
     const rate = slideTarget >= this.slide ? st.slideEase : CAR.slideRecover;
@@ -224,10 +226,11 @@ export class Car {
       this.finishing = true;
       this.finishTime = time;
       this.finishSign = this.slideSign || 1;
+      this.finishProgress = 0;
+      this.finishStart = { ...this.pos };
       // Park spot: ON the track at the finish line, staggered per car so they
       // don't pile up — distinct lateral lane + a step back along the straight.
       this.finishDir = track.startDir;
-      // A few px PAST the line, lightly staggered forward; lanes spread laterally.
       const fwd = 26 + this.id * 8;
       const lat = (this.id - 1.5) * track.halfWidth * 0.5;
       this.finishTarget = add(
@@ -237,31 +240,44 @@ export class Car {
     }
   }
 
-  /** Scripted finish: drift to a staggered park spot on the track, then stop. */
+  /**
+   * Scripted finish: a graceful power-slide. The car eases (decelerating) from
+   * where it crossed the line to a staggered park spot, arcing sideways and
+   * yawing into a drift that straightens out as it settles. Looks like a stylish
+   * hand-brake stop, ~finishDuration seconds.
+   */
   private finishDrift(dt: number): void {
     this.offTrack = false;
-    const toT = sub(this.finishTarget, this.pos);
-    const d = Math.hypot(toT.x, toT.y);
+    this.finishProgress = Math.min(1, this.finishProgress + dt / CAR.finishDuration);
+    const t = this.finishProgress;
+    const e = 1 - Math.pow(1 - t, 3); // easeOutCubic: enters fast, settles slow
+    const arc = Math.sin(t * Math.PI); // 0 → 1 → 0
 
-    // Ease toward the park spot (quick), report a speed for the HUD.
-    this.pos = add(this.pos, scale(toT, Math.min(1, 9 * dt)));
-    this.speed = d * 6;
+    // Curved path: lerp start→target plus a lateral bulge that peaks mid-slide.
+    const per = perp(this.finishDir);
+    const bulge = arc * CAR.finishBulge * this.finishSign;
+    this.pos = {
+      x: this.finishStart.x + (this.finishTarget.x - this.finishStart.x) * e + per.x * bulge,
+      y: this.finishStart.y + (this.finishTarget.y - this.finishStart.y) * e + per.y * bulge,
+    };
 
-    // Drift yaw while still moving in, straighten as it parks.
-    const phase = Math.min(1, d / 45);
-    this.sliding = phase > 0.25;
-    const ang = this.finishSign * 0.9 * phase;
-    const ca = Math.cos(ang);
-    const sa = Math.sin(ang);
+    // Yaw kicks into a drift then straightens to face forward at the end.
+    const yaw = arc * CAR.driftMaxAngle * 1.7 * this.finishSign;
+    const ca = Math.cos(yaw);
+    const sa = Math.sin(yaw);
     this.dir = {
       x: this.finishDir.x * ca - this.finishDir.y * sa,
       y: this.finishDir.x * sa + this.finishDir.y * ca,
     };
 
-    if (d < 1.5) {
+    this.sliding = t < 0.82;
+    this.speed = (1 - e) * 280; // decaying (HUD only)
+
+    if (t >= 1) {
       this.finished = true;
       this.speed = 0;
       this.pos = { ...this.finishTarget };
+      this.dir = { ...this.finishDir };
     }
   }
 
