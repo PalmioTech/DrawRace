@@ -24,9 +24,15 @@ const STAT_HINTS: Record<StatKey, string> = {
 const ROW_Y = (i: number) => 168 + i * 96;
 const CARD_X = 150;
 const CARD_W = DESIGN.width - 300;
-const SEG_X = [806, 866, 926];
+const CARD_RIGHT = CARD_X + CARD_W;
 const SEG_W = 46;
 const SEG_H = 30;
+// Controls are right-anchored to the (width-responsive) card so they line up
+// against the right edge on any screen aspect, with the label/hint on the left.
+// Packed right→left (+ button, three segments, − button) with even gaps.
+const PLUS_X = CARD_RIGHT - 46;
+const SEG_X = [0, 1, 2].map((s) => PLUS_X - 78 - (2 - s) * 60);
+const MINUS_X = SEG_X[0] - 78;
 
 export class SetupScene extends Phaser.Scene {
   private build!: RaceBuild;
@@ -83,11 +89,11 @@ export class SetupScene extends Phaser.Scene {
       lbl.setLetterSpacing?.(1);
       glow(lbl, color, 0.5);
       this.add
-        .text(CARD_X + 28, y + 16, STAT_HINTS[key], bodyStyle(17, COLORS.textMid, '600'))
+        .text(CARD_X + 28, y + 17, STAT_HINTS[key], bodyStyle(20, COLORS.textMid, '600'))
         .setOrigin(0, 0.5);
 
-      this.minusBtns[i] = makeButton(this, 720, y, 62, 56, '−', () => this.change(key, -1), COLORS.panelBorder);
-      this.plusBtns[i] = makeButton(this, 1006, y, 62, 56, '+', () => this.change(key, +1), color);
+      this.minusBtns[i] = makeButton(this, MINUS_X, y, 62, 56, '−', () => this.change(key, -1), COLORS.panelBorder);
+      this.plusBtns[i] = makeButton(this, PLUS_X, y, 62, 56, '+', () => this.change(key, +1), color);
     });
 
     this.segG = this.add.graphics().setDepth(3);
