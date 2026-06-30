@@ -9,11 +9,30 @@
  * draw-to-race mechanic is mostly about adjusting them.
  */
 
-/** Fixed virtual resolution (LANDSCAPE). The whole track fits inside this. */
-export const DESIGN = {
-  width: 1280,
-  height: 720,
-} as const;
+/**
+ * Virtual resolution (LANDSCAPE). Height is fixed (720) so all pixel sizes —
+ * cars, fonts, track width — stay consistent; WIDTH is matched to the device's
+ * aspect ratio at boot so Phaser's Scale.FIT fills the whole screen with NO
+ * letterbox bars (a FIT of a design that already matches the screen aspect is
+ * an exact fill). The track stretches to fill the wider area. Falls back to
+ * 16:9 when the window size isn't available (build / headless).
+ */
+function computeDesign(): { width: number; height: number } {
+  const H = 720;
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 0;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 0;
+  if (!vw || !vh) return { width: 1280, height: H };
+  // Use the landscape orientation aspect even if the device is held portrait
+  // (the CSS overlay asks the user to rotate; the game always runs landscape).
+  const long = Math.max(vw, vh);
+  const short = Math.min(vw, vh);
+  // Clamp to a sane range so an ultrawide desktop doesn't grotesquely stretch
+  // the track; every phone aspect lands inside this band → exact edge-to-edge.
+  const aspect = Math.min(Math.max(long / short, 1.33), 2.6);
+  return { width: Math.round(H * aspect), height: H };
+}
+
+export const DESIGN = computeDesign();
 
 /** Number of laps the player must draw (baked into the trajectory). */
 export const LAPS = 3;
@@ -30,8 +49,8 @@ export const SIDEBAR_W = 268;
 export const PLAY_AREA = {
   x: 6,
   y: 6,
-  w: 1280 - 12,
-  h: 720 - 12,
+  w: DESIGN.width - 12,
+  h: DESIGN.height - 12,
 } as const;
 
 /** Physics simulation step. Fixed timestep → deterministic, stable feel. */

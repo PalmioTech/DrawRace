@@ -108,7 +108,7 @@ export class Car {
   update(dt: number, track: Track, time: number): void {
     if (this.finished || this.traj.points.length < 2) return;
     if (this.finishing) {
-      this.finishDrift(dt);
+      this.finishDrift(dt, track);
       return;
     }
 
@@ -225,7 +225,12 @@ export class Car {
     if (this.crossings >= LAPS || this.s >= this.traj.length) {
       this.finishing = true;
       this.finishTime = time;
-      this.finishSign = this.slideSign || 1;
+      // Bulge the slide toward the track INTERIOR (the side the car is NOT on),
+      // so the celebratory arc curves inward and never off the outer edge.
+      const per = perp(track.startDir);
+      const lateral =
+        (this.pos.x - track.startPos.x) * per.x + (this.pos.y - track.startPos.y) * per.y;
+      this.finishSign = lateral > 0 ? -1 : 1;
       this.finishProgress = 0;
       this.finishStart = { ...this.pos };
       // Park spot: ON the track at the finish line, staggered per car so they
@@ -246,7 +251,7 @@ export class Car {
    * yawing into a drift that straightens out as it settles. Looks like a stylish
    * hand-brake stop, ~finishDuration seconds.
    */
-  private finishDrift(dt: number): void {
+  private finishDrift(dt: number, track: Track): void {
     this.offTrack = false;
     this.finishProgress = Math.min(1, this.finishProgress + dt / CAR.finishDuration);
     const t = this.finishProgress;
@@ -260,6 +265,16 @@ export class Car {
       x: this.finishStart.x + (this.finishTarget.x - this.finishStart.x) * e + per.x * bulge,
       y: this.finishStart.y + (this.finishTarget.y - this.finishStart.y) * e + per.y * bulge,
     };
+
+    // Hard guard: keep the whole finish slide on the drivable surface. If the
+    // arc would carry the car past the border, pull it back to the inner edge.
+    const proj = track.project(this.pos);
+    const maxOff = track.halfWidth - CAR.radius - 2;
+    if (proj.dist > maxOff) {
+      const c = track.pointAt(proj.s);
+      const dir = normalize(sub(this.pos, c));
+      this.pos = add(c, scale(dir, maxOff));
+    }
 
     // Yaw kicks into a drift then straightens to face forward at the end.
     const yaw = arc * CAR.driftMaxAngle * 1.7 * this.finishSign;
