@@ -102,9 +102,13 @@ func update(dt: float, track: Track) -> void:
 	# SIGNED target: the sign rides along, so when the corner flips (S-curve) or
 	# ends, the slide eases THROUGH zero instead of jumping to the other side.
 	var slide_target := minf(GameConst.CAR_MAX_SLIDE, excess * GameConst.CAR_SLIDE_GAIN) * drift * _slide_sign
-	# Build up gradually (ease), return to the line gently (recover).
+	# Build up gradually (ease), return to the line gently (recover) — and CAP
+	# the lateral speed so neither direction can ever move sideways faster than
+	# CAR_SLIDE_MAX_RATE px/s (kills the end-of-drift snap).
 	var rate := GameConst.CAR_SLIDE_EASE if absf(slide_target) > absf(slide) else GameConst.CAR_SLIDE_RECOVER
-	slide += (slide_target - slide) * minf(1.0, rate * dt)
+	var step := (slide_target - slide) * minf(1.0, rate * dt)
+	var max_step := GameConst.CAR_SLIDE_MAX_RATE * dt
+	slide += clampf(step, -max_step, max_step)
 
 	# Accelerate / brake toward the effective target.
 	if speed < eff_target:
