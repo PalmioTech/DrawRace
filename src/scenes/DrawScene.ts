@@ -83,6 +83,9 @@ export class DrawScene extends Phaser.Scene {
       COLORS.accent,
     );
 
+    // Back to menu, top-left corner (abandons the whole build).
+    makeButton(this, 48, 46, 56, 56, '✕', () => this.scene.start('Menu'), COLORS.panelBorder).setDepth(60);
+
     // Pointer handlers (mouse + touch).
     this.input.on('pointerdown', this.onDown, this);
     this.input.on('pointermove', this.onMove, this);

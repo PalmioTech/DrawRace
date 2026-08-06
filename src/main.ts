@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import { DESIGN, COLORS } from './config/constants';
 import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
+import { SettingsScene } from './scenes/SettingsScene';
 import { SetupScene } from './scenes/SetupScene';
 import { DrawScene } from './scenes/DrawScene';
 import { RaceScene } from './scenes/RaceScene';
@@ -39,7 +40,7 @@ const config: Phaser.Types.Core.GameConfig = {
     antialias: true,
     roundPixels: false,
   },
-  scene: [BootScene, MenuScene, SetupScene, DrawScene, RaceScene, ResultScene],
+  scene: [BootScene, MenuScene, SettingsScene, SetupScene, DrawScene, RaceScene, ResultScene],
 };
 
 const game = new Phaser.Game(config);

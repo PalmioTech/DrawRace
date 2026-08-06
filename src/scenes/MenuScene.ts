@@ -68,6 +68,9 @@ export class MenuScene extends Phaser.Scene {
     // --- Start --------------------------------------------------------------
     makeButton(this, cx, 580, 380, 86, 'START', () => this.start(), COLORS.accent);
 
+    // Settings gear, top-right corner.
+    makeButton(this, DESIGN.width - 60, 56, 64, 64, '⚙', () => this.scene.start('Settings'), COLORS.panelBorder);
+
     this.add
       .text(cx, 672, `DRAW ${LAPS} LAPS WITH YOUR FINGER`, bodyStyle(17, COLORS.textDim, '500'))
       .setOrigin(0.5)

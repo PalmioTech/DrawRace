@@ -99,6 +99,8 @@ export class SetupScene extends Phaser.Scene {
     this.segG = this.add.graphics().setDepth(3);
 
     makeButton(this, cx, DESIGN.height - 56, 380, 84, 'CONFERMA', () => this.confirm(), COLORS.accent);
+    // Back to menu, top-left corner.
+    makeButton(this, 48, 46, 56, 56, '✕', () => this.scene.start('Menu'), COLORS.panelBorder);
 
     this.refresh();
   }

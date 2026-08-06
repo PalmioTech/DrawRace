@@ -81,6 +81,17 @@ export class SaveManager {
     this.persist();
   }
 
+  setAudio(on: boolean): void {
+    this.data.settings.audio = on;
+    this.persist();
+  }
+
+  /** Wipe stored best times (settings and loadout survive). */
+  clearBestTimes(): void {
+    this.data.bestTimes = {};
+    this.persist();
+  }
+
   /** Player's last car setup (sanitized to legal bounds). */
   getLoadout(): Loadout {
     return sanitizeLoadout(this.data.lastLoadout ?? defaultLoadout());

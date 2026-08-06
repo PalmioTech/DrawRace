@@ -11,6 +11,7 @@ import type { Car } from '../core/CarSim';
 import { RaceEngine } from '../core/RaceEngine';
 import { drawTrack } from '../ui/TrackView';
 import { Hud } from '../ui/Hud';
+import { makeButton } from '../ui/Button';
 import { displayStyle, bodyStyle, glow, hex } from '../ui/theme';
 const TRAIL = 14;
 
@@ -31,6 +32,8 @@ export class RaceScene extends Phaser.Scene {
   private eliminatedShown = new Set<number>();
   private started = false;
   private done = false;
+  private paused = false;
+  private pauseUI?: Phaser.GameObjects.Container;
 
   constructor() {
     super('Race');
@@ -49,6 +52,9 @@ export class RaceScene extends Phaser.Scene {
     // done=true/started=true and never advances.
     this.started = false;
     this.done = false;
+    this.paused = false;
+    this.pauseUI = undefined;
+    this.time.paused = false;
     this.trails.clear();
     this.eliminatedShown.clear();
     this.sprites.clear();
@@ -68,8 +74,34 @@ export class RaceScene extends Phaser.Scene {
     this.hud = new Hud(this, cars.length);
     this.hud.update(this.engine); // show the starting grid before the countdown
 
+    // Pause button, top-right (HUD floats top-left).
+    makeButton(this, DESIGN.width - 52, 48, 60, 60, 'II', () => this.togglePause(), COLORS.panelBorder).setDepth(210);
+
     // 3-2-1-GO countdown, then release the cars.
     this.countdown();
+  }
+
+  /** Pause overlay: freezes sim + countdown, offers resume / exit to menu. */
+  private togglePause(): void {
+    if (this.done) return;
+    this.paused = !this.paused;
+    this.time.paused = this.paused; // also freezes the 3-2-1 countdown timer
+    if (this.paused) {
+      const cx = DESIGN.width / 2;
+      const cy = DESIGN.height / 2;
+      const dim = this.add.rectangle(cx, cy, DESIGN.width, DESIGN.height, COLORS.bg, 0.72);
+      const title = this.add.text(cx, cy - 120, 'PAUSA', displayStyle(56, COLORS.textPrimary, '900')).setOrigin(0.5);
+      glow(title, COLORS.trackBorder, 1.2);
+      const resume = makeButton(this, cx, cy + 4, 320, 80, 'RIPRENDI', () => this.togglePause(), COLORS.accent);
+      const exit = makeButton(this, cx, cy + 104, 320, 80, 'ESCI AL MENU', () => {
+        this.time.paused = false;
+        this.scene.start('Menu');
+      });
+      this.pauseUI = this.add.container(0, 0, [dim, title, resume, exit]).setDepth(220);
+    } else {
+      this.pauseUI?.destroy();
+      this.pauseUI = undefined;
+    }
   }
 
   private countdown(): void {
@@ -100,6 +132,7 @@ export class RaceScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    if (this.paused) return; // frozen frame stays on screen
     this.renderCars();
     if (!this.started || this.done) return;
 
