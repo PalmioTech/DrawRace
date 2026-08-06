@@ -43,6 +43,12 @@ export class RaceEngine {
     for (const car of this.cars) car.update(dt, this.track, this.time);
   }
 
+  /** Fraction (0..1) of the way from the last sim step to the next — scenes
+   * use it to interpolate car positions for smooth rendering. */
+  get alpha(): number {
+    return Math.min(1, this.acc / SIM.dt);
+  }
+
   allFinished(): boolean {
     return this.cars.every((c) => c.finished);
   }

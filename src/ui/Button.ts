@@ -51,8 +51,13 @@ export function makeButton(
   };
   redraw(false);
 
+  // Generous padded hit area (fat fingers), and fire on pointerDOWN: firing on
+  // pointerup drops taps on touch — the press tween shrinks the container (hit
+  // area shrinks with it) and the finger always shifts a few px, so the up
+  // event often lands outside and the click was lost.
+  const pad = 14;
   container.setInteractive(
-    new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h),
+    new Phaser.Geom.Rectangle(-w / 2 - pad, -h / 2 - pad, w + pad * 2, h + pad * 2),
     Phaser.Geom.Rectangle.Contains,
   );
 
@@ -61,11 +66,11 @@ export function makeButton(
     scene.tweens.add({ targets: container, scale: down ? 0.95 : 1, duration: 80, ease: 'Quad.Out' });
   };
 
-  container.on('pointerdown', () => press(true));
-  container.on('pointerup', () => {
-    press(false);
+  container.on('pointerdown', () => {
+    press(true);
     onClick();
   });
+  container.on('pointerup', () => press(false));
   container.on('pointerout', () => press(false));
 
   container.setSelected = (on: boolean) => {

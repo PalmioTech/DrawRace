@@ -68,7 +68,7 @@ throttle. Top-down, touch-only, landscape, 60fps. Now styled as a **top-down ral
 - `screen.orientation.lock` (gyroscope) → dropped; CSS "rotate device" overlay handles
   portrait, game runs landscape.
 - Synthetic DOM pointer events in `preview_eval` don't reach Phaser input (no `pageX`);
-  to drive UI, `.emit('pointerup')` directly on the button container, or advance the
+  to drive UI, `.emit('pointerdown')` directly on the button container (buttons fire on down), or advance the
   engine via `r.engine.update(1/60)` in a loop.
 - Headless preview RAF is paused between calls; `scene.start` is deferred — advance with
   `game.loop.step(...)` or take a screenshot to force frames.

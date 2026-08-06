@@ -34,6 +34,11 @@ export class Car {
   pos: Vec2;
   /** Facing direction. */
   dir: Vec2 = { x: 0, y: 1 };
+  /** Pos/dir at the previous sim step — scenes lerp prev→current by the
+   * engine's accumulator fraction so rendering is smooth at any display Hz
+   * (no temporal aliasing from 0/1/2 fixed steps per frame). */
+  prevRenderPos: Vec2;
+  prevRenderDir: Vec2 = { x: 0, y: 1 };
 
   finished = false;
   finishTime = 0;
@@ -86,6 +91,8 @@ export class Car {
     if (traj.points.length >= 2) this.dir = normalize(sub(traj.points[1], traj.points[0]));
     this.speed = stats.minSpeed * 0.5;
     this.prevPos = { ...this.pos };
+    this.prevRenderPos = { ...this.pos };
+    this.prevRenderDir = { ...this.dir };
     this.prevCenterFrac = track.project(this.pos).s / track.length;
   }
 
@@ -106,6 +113,8 @@ export class Car {
 
   /** Advance one fixed timestep. */
   update(dt: number, track: Track, time: number): void {
+    this.prevRenderPos = { ...this.pos };
+    this.prevRenderDir = { ...this.dir };
     if (this.finished || this.traj.points.length < 2) return;
     if (this.finishing) {
       this.finishDrift(dt, track);

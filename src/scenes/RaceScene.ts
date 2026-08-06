@@ -116,20 +116,27 @@ export class RaceScene extends Phaser.Scene {
   private renderCars(): void {
     const g = this.carsG;
     g.clear();
+    // Interpolate prev→current sim state by the accumulator fraction so cars
+    // move smoothly at any display Hz (fixed 60Hz sim, variable frame rate).
+    const a = this.engine.alpha;
     for (const car of this.payload.cars) {
       const sprite = this.sprites.get(car.id);
+      const px = car.prevRenderPos.x + (car.pos.x - car.prevRenderPos.x) * a;
+      const py = car.prevRenderPos.y + (car.pos.y - car.prevRenderPos.y) * a;
+      const dx = car.prevRenderDir.x + (car.dir.x - car.prevRenderDir.x) * a;
+      const dy = car.prevRenderDir.y + (car.dir.y - car.prevRenderDir.y) * a;
       // Eliminated: car is removed from the track. Flash "ELIMINATO" once.
       if (car.eliminated) {
         sprite?.setVisible(false);
         if (!this.eliminatedShown.has(car.id)) {
           this.eliminatedShown.add(car.id);
-          this.flashEliminated(car.pos.x, car.pos.y, car.color);
+          this.flashEliminated(px, py, car.color);
         }
         continue;
       }
       const hist = this.trails.get(car.id)!;
       if (this.started) {
-        hist.push({ ...car.pos });
+        hist.push({ x: px, y: py });
         if (hist.length > TRAIL) hist.shift();
       }
 
@@ -145,14 +152,14 @@ export class RaceScene extends Phaser.Scene {
       // Slide / off-track spark ring under the car.
       if (car.sliding || car.offTrack) {
         g.fillStyle(car.offTrack ? COLORS.accent : 0xffffff, 0.4);
-        g.fillCircle(car.pos.x, car.pos.y, CAR_SPRITE_LEN * 0.5 + 4);
+        g.fillCircle(px, py, CAR_SPRITE_LEN * 0.5 + 4);
       }
 
       // Car sprite: follow position, rotate to heading (sprite art faces up).
       if (sprite) {
         sprite.setVisible(true);
-        sprite.setPosition(car.pos.x, car.pos.y);
-        sprite.setRotation(Math.atan2(car.dir.y, car.dir.x) + Math.PI / 2);
+        sprite.setPosition(px, py);
+        sprite.setRotation(Math.atan2(dy, dx) + Math.PI / 2);
       }
     }
   }
