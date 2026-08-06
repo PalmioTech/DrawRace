@@ -18,6 +18,11 @@ var slide_sign := 1.0       ## Direction (±1) the slide pushes (outside of corn
 
 var pos: Vector2
 var dir := Vector2(0, 1)
+## Pos/dir at the previous sim step — the scene lerps prev→current by the
+## accumulator fraction so rendering is smooth at any display Hz (same trick
+## as the web build's prevRenderPos).
+var prev_render_pos: Vector2
+var prev_render_dir := Vector2(0, 1)
 var finished := false
 var sliding := false        ## True while sliding above grip this tick (for FX).
 var off_track := false
@@ -36,6 +41,8 @@ func _init(trajectory: Dictionary, track: Track) -> void:
 		dir = (pts[1] - pts[0]).normalized()
 	speed = GameConst.CAR_MIN_SPEED * 0.5
 	_prev_pos = pos
+	prev_render_pos = pos
+	prev_render_dir = dir
 	_prev_center_frac = float(track.project(pos)["s"]) / track.length
 
 ## Sample trajectory position / target-speed / curvature / tangent at arc length `at_s`.
@@ -57,6 +64,8 @@ func _sample_at(at_s: float) -> Dictionary:
 
 ## Advance one fixed timestep.
 func update(dt: float, track: Track) -> void:
+	prev_render_pos = pos
+	prev_render_dir = dir
 	if finished or traj["points"].size() < 2:
 		return
 	var sample := _sample_at(s)

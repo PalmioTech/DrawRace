@@ -4,9 +4,13 @@ extends Node2D
 ## Flow:  draw with the mouse (= finger) starting near the start line, tracing 3
 ## laps → release → press SPACE to watch the car replay your line → R to reset.
 ##
-## The drawn line is coloured by finger speed (dark = slow, blue = fast). This
-## scene only does rendering + input; all the game logic lives in the ported
-## GameConst / Geo / Track / SpeedProfile / Car classes.
+## Rendering upgrades vs the first cut:
+##  - the car is interpolated between fixed sim steps (prev→current by the
+##    accumulator fraction) → smooth motion at any display Hz
+##  - the asphalt is a FILLED POLYGON between the two borders (no more miter
+##    spikes from a fat polyline)
+##  - neon borders (soft glow pass + crisp line), checkered start line,
+##    rotated car body with a slide trail
 
 var track: Track
 var drawing := false
@@ -14,6 +18,16 @@ var raw_points: Array = []          # [{ "pos": Vector2, "t": int(ms) }]
 var trajectory: Dictionary = {}
 var car: Car = null
 var accumulator := 0.0
+
+# Precomputed track render data (built once in _ready).
+var _outer: PackedVector2Array      # outer track outline (round joins)
+var _inner: PackedVector2Array      # inner track outline (the "hole")
+var _outer_line: PackedVector2Array # closed polylines for the borders
+var _inner_line: PackedVector2Array
+var _start_quad: Array = []          # checkered start-line squares
+
+# Slide trail: recent positions while the car is drifting.
+var _trail: Array = []               # [{ "pos": Vector2, "life": float }]
 
 # --- lap counting during the draw (ported from PathRecorder.ts) ---
 var recorder_laps := 0
@@ -29,7 +43,60 @@ func _ready() -> void:
 		Vector2(175, 585), Vector2(285, 430), Vector2(185, 290), Vector2(375, 155),
 	]
 	track = Track.new(controls, 58.0)
+	_build_track_render()
 	queue_redraw()
+
+## Precompute the track outlines (offset with ROUND joins → no spikes, ever)
+## and the checkered start line.
+func _build_track_render() -> void:
+	# Closed centerline polygon (drop the duplicated last point).
+	var center_poly := PackedVector2Array(track.center.slice(0, track.center.size() - 1))
+	_outer = _largest_poly(Geometry2D.offset_polygon(center_poly, track.half_width, Geometry2D.JOIN_ROUND))
+	_inner = _largest_poly(Geometry2D.offset_polygon(center_poly, -track.half_width, Geometry2D.JOIN_ROUND))
+	# Winding can flip which delta grows the polygon: make sure _outer is the big one.
+	if _poly_area(_inner) > _poly_area(_outer):
+		var tmp := _outer
+		_outer = _inner
+		_inner = tmp
+	_outer_line = _closed(_outer)
+	_inner_line = _closed(_inner)
+	# Checkered start line: 2 rows of small squares across the track width.
+	_start_quad.clear()
+	var across := (track.start_b - track.start_a)
+	var n_sq := 8
+	var step := across / float(n_sq)
+	var fwd := track.start_dir * 7.0
+	for row in 2:
+		for i in n_sq:
+			if (i + row) % 2 == 0:
+				var a := track.start_a + step * float(i) + fwd * float(row)
+				_start_quad.append(PackedVector2Array([a, a + step, a + step + fwd, a + fwd]))
+
+## Pick the largest polygon from an offset result (it can return several).
+func _largest_poly(polys: Array) -> PackedVector2Array:
+	var best: PackedVector2Array = PackedVector2Array()
+	var best_area := -1.0
+	for p in polys:
+		var area := _poly_area(p)
+		if area > best_area:
+			best_area = area
+			best = p
+	return best
+
+## Absolute shoelace area of a polygon.
+func _poly_area(p: PackedVector2Array) -> float:
+	var a := 0.0
+	for i in p.size():
+		var j := (i + 1) % p.size()
+		a += p[i].x * p[j].y - p[j].x * p[i].y
+	return absf(a) * 0.5
+
+## Closed polyline copy (first point appended at the end).
+func _closed(p: PackedVector2Array) -> PackedVector2Array:
+	var out := PackedVector2Array(p)
+	if p.size() > 0:
+		out.append(p[0])
+	return out
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -46,16 +113,22 @@ func _input(event: InputEvent) -> void:
 			_reset()
 
 func _process(delta: float) -> void:
-	if car == null or car.finished:
-		return
-	accumulator += delta
-	var steps := 0
-	while accumulator >= GameConst.SIM_DT and steps < GameConst.MAX_STEPS_PER_FRAME:
-		car.update(GameConst.SIM_DT, track)
-		accumulator -= GameConst.SIM_DT
-		steps += 1
-		if car.finished:
-			break
+	if car != null:
+		accumulator += delta
+		var steps := 0
+		while accumulator >= GameConst.SIM_DT and steps < GameConst.MAX_STEPS_PER_FRAME:
+			car.update(GameConst.SIM_DT, track)
+			if car.sliding:
+				_trail.append({"pos": car.pos, "life": 1.0})
+			accumulator -= GameConst.SIM_DT
+			steps += 1
+			if car.finished:
+				accumulator = 0.0
+				break
+		# Fade the slide trail.
+		for t in _trail:
+			t["life"] = float(t["life"]) - delta * 1.4
+		_trail = _trail.filter(func(t): return float(t["life"]) > 0.0)
 	queue_redraw()
 
 # --- draw phase ------------------------------------------------------------
@@ -103,6 +176,7 @@ func _start_race() -> void:
 	if trajectory.is_empty():
 		return
 	car = Car.new(trajectory, track)
+	_trail.clear()
 	accumulator = 0.0
 	queue_redraw()
 
@@ -110,6 +184,7 @@ func _reset() -> void:
 	car = null
 	trajectory = {}
 	raw_points = []
+	_trail = []
 	drawing = false
 	_complete = false
 	recorder_laps = 0
@@ -123,20 +198,30 @@ func _draw() -> void:
 	if track == null:
 		return
 
-	# Track surface: a thick band along the centerline, then the neon borders.
-	draw_polyline(PackedVector2Array(track.center), GameConst.COL_TRACK_FILL, track.half_width * 2.0, true)
-	var b := track.borders(track.half_width)
-	draw_polyline(PackedVector2Array(b["left"]), GameConst.COL_TRACK_BORDER, 3.0, true)
-	draw_polyline(PackedVector2Array(b["right"]), GameConst.COL_TRACK_BORDER, 3.0, true)
-	draw_line(track.start_a, track.start_b, GameConst.COL_START, 4.0)
+	# Asphalt: fill the outer outline, then "cut" the infield with the bg color.
+	draw_colored_polygon(_outer, GameConst.COL_TRACK_FILL)
+	draw_colored_polygon(_inner, GameConst.COL_BG)
 
-	# The drawn line (before the race starts).
+	# Neon borders: a soft wide glow pass underneath + a crisp bright line on top.
+	var glow := GameConst.COL_TRACK_BORDER
+	glow.a = 0.22
+	draw_polyline(_outer_line, glow, 9.0, true)
+	draw_polyline(_inner_line, glow, 9.0, true)
+	draw_polyline(_outer_line, GameConst.COL_TRACK_BORDER, 2.5, true)
+	draw_polyline(_inner_line, GameConst.COL_TRACK_BORDER, 2.5, true)
+
+	# Checkered start line.
+	for q in _start_quad:
+		draw_colored_polygon(q, GameConst.COL_START)
+
+	# The drawn line (before the race) / the car (during the race).
 	if car == null:
 		if not trajectory.is_empty():
 			_draw_trajectory()
 		elif raw_points.size() >= 2:
 			_draw_raw()
 	else:
+		_draw_trail()
 		_draw_car()
 
 	_draw_hud()
@@ -155,12 +240,32 @@ func _draw_raw() -> void:
 	for i in range(raw_points.size() - 1):
 		draw_line(raw_points[i]["pos"], raw_points[i + 1]["pos"], GameConst.COL_DRAW_FAST, 3.0, true)
 
+func _draw_trail() -> void:
+	for t in _trail:
+		var life := float(t["life"])
+		var col := Color(1, 1, 1, 0.28 * life)
+		draw_circle(t["pos"], 3.5 * life + 1.0, col)
+
 func _draw_car() -> void:
-	var r := GameConst.CAR_RADIUS
-	draw_circle(car.pos, r, GameConst.COL_CAR)
-	draw_line(car.pos, car.pos + car.dir * (r + 10.0), GameConst.COL_START, 2.0)
-	if car.sliding:
-		draw_arc(car.pos, r + 4.0, 0.0, TAU, 24, Color(1, 1, 1, 0.5), 1.5)
+	# Interpolate prev→current by the accumulator fraction → smooth at any Hz.
+	var alpha := clampf(accumulator / GameConst.SIM_DT, 0.0, 1.0)
+	var p := car.prev_render_pos.lerp(car.pos, alpha)
+	var d := car.prev_render_dir.lerp(car.dir, alpha).normalized()
+	var ang := d.angle()
+	var L := GameConst.CAR_RADIUS * 2.4   # body length
+	var W := GameConst.CAR_RADIUS * 1.4   # body width
+
+	draw_set_transform(p, ang, Vector2.ONE)
+	# Soft shadow under the body.
+	draw_rect(Rect2(-L * 0.5 + 2.0, -W * 0.5 + 2.0, L, W), Color(0, 0, 0, 0.35))
+	# Body.
+	draw_rect(Rect2(-L * 0.5, -W * 0.5, L, W), GameConst.COL_CAR)
+	# Nose wedge + cockpit to show the heading.
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(L * 0.5, -W * 0.5), Vector2(L * 0.5 + 8.0, 0.0), Vector2(L * 0.5, W * 0.5)
+	]), GameConst.COL_CAR)
+	draw_rect(Rect2(-L * 0.1, -W * 0.28, L * 0.34, W * 0.56), Color(0.08, 0.09, 0.14))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 func _draw_hud() -> void:
 	var font := ThemeDB.fallback_font
