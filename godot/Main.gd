@@ -16,7 +16,8 @@ var track: Track
 var drawing := false
 var raw_points: Array = []          # [{ "pos": Vector2, "t": int(ms) }]
 var trajectory: Dictionary = {}
-var car: Car = null
+var cars: Array = []                 # all racers (player + AI); empty = not racing
+var race_time := 0.0
 var accumulator := 0.0
 
 # Precomputed track render data (built once in _ready).
@@ -113,19 +114,18 @@ func _input(event: InputEvent) -> void:
 			_reset()
 
 func _process(delta: float) -> void:
-	if car != null:
+	if not cars.is_empty():
 		accumulator += delta
 		var steps := 0
 		while accumulator >= GameConst.SIM_DT and steps < GameConst.MAX_STEPS_PER_FRAME:
-			car.update(GameConst.SIM_DT, track)
-			if car.sliding:
-				_trail.append({"pos": car.pos, "life": 1.0})
+			race_time += GameConst.SIM_DT
+			for c in cars:
+				c.update(GameConst.SIM_DT, track, race_time)
+				if c.sliding:
+					_trail.append({"pos": c.pos, "life": 1.0, "col": c.color})
 			accumulator -= GameConst.SIM_DT
 			steps += 1
-			if car.finished:
-				accumulator = 0.0
-				break
-		# Fade the slide trail.
+		# Fade the slide trails.
 		for t in _trail:
 			t["life"] = float(t["life"]) - delta * 1.4
 		_trail = _trail.filter(func(t): return float(t["life"]) > 0.0)
@@ -134,7 +134,7 @@ func _process(delta: float) -> void:
 # --- draw phase ------------------------------------------------------------
 
 func _start_draw(p: Vector2) -> void:
-	if car != null:
+	if not cars.is_empty():
 		return
 	drawing = true
 	raw_points = [{"pos": p, "t": Time.get_ticks_msec()}]
@@ -175,13 +175,24 @@ func _end_draw() -> void:
 func _start_race() -> void:
 	if trajectory.is_empty():
 		return
-	car = Car.new(trajectory, track)
+	cars.clear()
+	var player := Car.new(trajectory, track)
+	player.label = "TU"
+	player.color = GameConst.COL_CAR
+	cars.append(player)
+	var ai_traj := AIDriver.build(track, "normal", randi())
+	var cpu := Car.new(ai_traj, track)
+	cpu.label = "CPU"
+	cpu.color = GameConst.COL_CAR_AI
+	cars.append(cpu)
 	_trail.clear()
+	race_time = 0.0
 	accumulator = 0.0
 	queue_redraw()
 
 func _reset() -> void:
-	car = null
+	cars.clear()
+	race_time = 0.0
 	trajectory = {}
 	raw_points = []
 	_trail = []
@@ -214,15 +225,16 @@ func _draw() -> void:
 	for q in _start_quad:
 		draw_colored_polygon(q, GameConst.COL_START)
 
-	# The drawn line (before the race) / the car (during the race).
-	if car == null:
+	# The drawn line (before the race) / the cars (during the race).
+	if cars.is_empty():
 		if not trajectory.is_empty():
 			_draw_trajectory()
 		elif raw_points.size() >= 2:
 			_draw_raw()
 	else:
 		_draw_trail()
-		_draw_car()
+		for c in cars:
+			_draw_car(c)
 
 	_draw_hud()
 
@@ -243,14 +255,15 @@ func _draw_raw() -> void:
 func _draw_trail() -> void:
 	for t in _trail:
 		var life := float(t["life"])
-		var col := Color(1, 1, 1, 0.28 * life)
+		var col: Color = t["col"]
+		col.a = 0.28 * life
 		draw_circle(t["pos"], 3.5 * life + 1.0, col)
 
-func _draw_car() -> void:
+func _draw_car(c: Car) -> void:
 	# Interpolate prev→current by the accumulator fraction → smooth at any Hz.
 	var alpha := clampf(accumulator / GameConst.SIM_DT, 0.0, 1.0)
-	var p := car.prev_render_pos.lerp(car.pos, alpha)
-	var d := car.prev_render_dir.lerp(car.dir, alpha).normalized()
+	var p := c.prev_render_pos.lerp(c.pos, alpha)
+	var d := c.prev_render_dir.lerp(c.dir, alpha).normalized()
 	var ang := d.angle()
 	var L := GameConst.CAR_RADIUS * 2.4   # body length
 	var W := GameConst.CAR_RADIUS * 1.4   # body width
@@ -259,19 +272,62 @@ func _draw_car() -> void:
 	# Soft shadow under the body.
 	draw_rect(Rect2(-L * 0.5 + 2.0, -W * 0.5 + 2.0, L, W), Color(0, 0, 0, 0.35))
 	# Body.
-	draw_rect(Rect2(-L * 0.5, -W * 0.5, L, W), GameConst.COL_CAR)
+	draw_rect(Rect2(-L * 0.5, -W * 0.5, L, W), c.color)
 	# Nose wedge + cockpit to show the heading.
 	draw_colored_polygon(PackedVector2Array([
 		Vector2(L * 0.5, -W * 0.5), Vector2(L * 0.5 + 8.0, 0.0), Vector2(L * 0.5, W * 0.5)
-	]), GameConst.COL_CAR)
+	]), c.color)
 	draw_rect(Rect2(-L * 0.1, -W * 0.28, L * 0.34, W * 0.56), Color(0.08, 0.09, 0.14))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 func _draw_hud() -> void:
 	var font := ThemeDB.fallback_font
-	var top_txt := "Giri disegnati: %d/%d" % [recorder_laps, GameConst.LAPS]
-	if car != null:
-		top_txt = "Giro %d/%d — %s" % [car.display_lap(), GameConst.LAPS, ("ARRIVATO" if car.finished else "in gara")]
-	draw_string(font, Vector2(16, 30), top_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, GameConst.COL_START)
+	if cars.is_empty():
+		var top_txt := "Giri disegnati: %d/%d" % [recorder_laps, GameConst.LAPS]
+		draw_string(font, Vector2(16, 30), top_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, GameConst.COL_START)
+	else:
+		var ranked := _ranking()
+		var player: Car = cars[0]
+		var pos_idx := ranked.find(player) + 1
+		var head := "Giro %d/%d — P%d — %s" % [player.display_lap(), GameConst.LAPS, pos_idx, _fmt_time(race_time)]
+		draw_string(font, Vector2(16, 30), head, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, GameConst.COL_START)
+		# Mini standings, one row per car.
+		var y := 56.0
+		for i in ranked.size():
+			var c: Car = ranked[i]
+			var row := "P%d  %s" % [i + 1, c.label]
+			if c.finished:
+				row += "  %s" % _fmt_time(c.finish_time)
+			draw_string(font, Vector2(16, y), row, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, c.color)
+			y += 22.0
+		if _all_finished():
+			var win: Car = ranked[0]
+			var msg := "HAI VINTO!" if win == player else "Ha vinto il COMPUTER"
+			draw_string(font, Vector2(GameConst.DESIGN.x * 0.5 - 120.0, GameConst.DESIGN.y * 0.5), msg, HORIZONTAL_ALIGNMENT_LEFT, -1, 34, win.color)
 	var hint := "Disegna col mouse dalla linea di start (3 giri)  •  SPAZIO per correre  •  R per ricominciare"
 	draw_string(font, Vector2(16, GameConst.DESIGN.y - 16), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, GameConst.COL_TEXT_DIM)
+
+## Live ranking: finishers first (by time), then by progress along the track.
+func _ranking() -> Array:
+	var sorted := cars.duplicate()
+	sorted.sort_custom(func(a: Car, b: Car) -> bool:
+		if a.finished and b.finished:
+			return a.finish_time < b.finish_time
+		if a.finished:
+			return true
+		if b.finished:
+			return false
+		return a.race_progress(track) > b.race_progress(track)
+	)
+	return sorted
+
+func _all_finished() -> bool:
+	for c in cars:
+		if not c.finished:
+			return false
+	return true
+
+func _fmt_time(t: float) -> String:
+	var m := int(t) / 60
+	var s := fmod(t, 60.0)
+	return "%d:%05.2f" % [m, s]

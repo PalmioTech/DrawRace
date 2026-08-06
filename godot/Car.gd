@@ -25,6 +25,9 @@ var dir := Vector2(0, 1)
 var prev_render_pos: Vector2
 var prev_render_dir := Vector2(0, 1)
 var finished := false
+var finish_time := 0.0      ## Race time (s) at which this car finished.
+var label := ""             ## HUD label ("TU", "CPU"…).
+var color := Color.WHITE    ## Body color.
 var sliding := false        ## True while sliding above grip this tick (for FX).
 var off_track := false
 
@@ -63,8 +66,8 @@ func _sample_at(at_s: float) -> Dictionary:
 	var tangent := (b - a).normalized()
 	return {"p": p, "target": target, "curv": curv, "tangent": tangent}
 
-## Advance one fixed timestep.
-func update(dt: float, track: Track) -> void:
+## Advance one fixed timestep. `time` is the elapsed race time (s).
+func update(dt: float, track: Track, time: float) -> void:
 	prev_render_pos = pos
 	prev_render_dir = dir
 	if finished or traj["points"].size() < 2:
@@ -142,6 +145,7 @@ func update(dt: float, track: Track) -> void:
 
 	if _crossings >= GameConst.LAPS or s >= float(traj["length"]):
 		finished = true
+		finish_time = time
 		speed = 0.0
 
 func _update_progress(track: Track) -> void:
@@ -151,6 +155,10 @@ func _update_progress(track: Track) -> void:
 	elif _prev_center_frac < 0.3 and frac > 0.7:
 		_center_lap = maxi(0, _center_lap - 1)
 	_prev_center_frac = frac
+
+## Monotonic race progress used to rank cars (laps * track_len + position).
+func race_progress(track: Track) -> float:
+	return float(_center_lap) * track.length + _prev_center_frac * track.length
 
 ## 1-based lap for the HUD (capped at total laps).
 func display_lap() -> int:

@@ -65,6 +65,12 @@ func point_at(s: float) -> Vector2:
 			return (center[i] as Vector2).lerp(center[i + 1], t)
 	return center[0]
 
+## Forward tangent at arc length `s`.
+func tangent_at(s: float) -> Vector2:
+	var a := point_at(s)
+	var b := point_at(s + 4.0)
+	return (b - a).normalized()
+
 ## Left + right border polylines for rendering, at a given half-width.
 func borders(width: float = -1.0) -> Dictionary:
 	if width < 0.0:

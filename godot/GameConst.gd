@@ -41,11 +41,11 @@ const CAR_DRIFT_SPEED_MARGIN := 28.0
 const CAR_DRIFT_CORNER_MIN := 0.2
 ## How fast the slide builds / recovers (per-second rate).
 const CAR_SLIDE_EASE := 5.0
-const CAR_SLIDE_RECOVER := 9.0
+const CAR_SLIDE_RECOVER := 6.0
 ## HARD CAP on lateral slide speed (px/s). The exponential ease above starts
-## very fast on big slides (~450 px/s from a full 50px drift), which reads as a
-## snap; this cap turns the return into a smooth, constant-speed glide.
-const CAR_SLIDE_MAX_RATE := 150.0
+## very fast on big slides, which reads as a snap; this cap turns the return
+## into a smooth, constant-speed glide. Lower = softer/floatier re-entry.
+const CAR_SLIDE_MAX_RATE := 100.0
 ## Max lateral slide offset (px) and max drift yaw (rad).
 const CAR_MAX_SLIDE := 50.0
 const CAR_DRIFT_MAX_ANGLE := 0.45
@@ -79,3 +79,4 @@ const COL_TEXT_DIM := Color("66708c")
 const COL_DRAW_SLOW := Color("3a4a6e")
 const COL_DRAW_FAST := Color("4d8dff")
 const COL_CAR := Color("ffe600")
+const COL_CAR_AI := Color("3a86ff")
