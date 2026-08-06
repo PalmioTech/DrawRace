@@ -1,29 +1,18 @@
 /**
- * Renders the track scene in a top-down RALLY style (procedural, no textures):
- * grassy ground, a dirt road with worn edges, scattered pine trees + rocks, and
- * a checkered start/finish line. Drawn once per scene (static layers).
+ * Renders the track scene in a top-down RALLY style using the Kenney Racing
+ * Pack textures (CC0): tiled grass ground, a dirt road that follows the spline
+ * (dirt tile clipped by a geometry mask), scattered trees + rocks, and a
+ * checkered start/finish line. All layers are static, drawn once per scene.
  *
- * Layer depths: grass (-50) < road (-40) < scenery (-30) < (drawn line 10, cars 25).
+ * Layer depths: grass (-50) < road rim (-42) < road (-40) < finish (-39)
+ * < scenery (-30) < (drawn line 10, cars 25).
  */
 import Phaser from 'phaser';
 import type { Track } from '../core/Track';
-import type { Vec2 } from '../core/types';
 import { DESIGN } from '../config/constants';
 
-// --- Rally palette ---
-const GRASS_BASE = 0x4f7a3a;
-const GRASS_DARK = 0x3c6330;
-const GRASS_LIGHT = 0x638f44;
-const DIRT = 0xb08c5c;
-const DIRT_LIGHT = 0xc6a877;
-const DIRT_DARK = 0x6f5635;
+/** Dark worn edge around the dirt road. */
 const DIRT_EDGE = 0x53401f;
-const TREE_SHADOW = 0x14240f;
-const TREE_DARK = 0x244c1c;
-const TREE_MID = 0x356b28;
-const TREE_LIGHT = 0x4f8a39;
-const ROCK = 0x8d8c84;
-const ROCK_DARK = 0x5f5e57;
 
 /** Tiny seeded PRNG (mulberry32) so scenery is varied but stable per build. */
 function rng(seed: number): () => number {
@@ -37,104 +26,72 @@ function rng(seed: number): () => number {
   };
 }
 
-/** Fill the band between two offset polylines. */
-function fillBand(g: Phaser.GameObjects.Graphics, left: Vec2[], right: Vec2[], color: number): void {
-  g.fillStyle(color, 1);
+/** Stroke the closed track centerline into a graphics object. */
+function strokeCenter(g: Phaser.GameObjects.Graphics, track: Track): void {
+  const pts = track.center;
   g.beginPath();
-  g.moveTo(left[0].x, left[0].y);
-  for (let i = 1; i < left.length; i++) g.lineTo(left[i].x, left[i].y);
-  for (let i = right.length - 1; i >= 0; i--) g.lineTo(right[i].x, right[i].y);
+  g.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
   g.closePath();
-  g.fillPath();
+  g.strokePath();
 }
 
 export function drawTrack(scene: Phaser.Scene, track: Track): void {
   const { width: W, height: H } = DESIGN;
   const rand = rng(20260624);
-
-  // Draw everything into one off-screen graphics, then bake to a single
-  // RenderTexture — so the (heavy) scenery is one image per frame, not redrawn.
-  const grass = scene.make.graphics({ x: 0, y: 0 });
-  const road = grass;
-  const deco = grass;
-
-  // --- Grass ground ------------------------------------------------------
-  grass.fillStyle(GRASS_BASE, 1);
-  grass.fillRect(0, 0, W, H);
-  for (let i = 0; i < 320; i++) {
-    const x = rand() * W;
-    const y = rand() * H;
-    const r = 10 + rand() * 30;
-    grass.fillStyle(rand() < 0.5 ? GRASS_DARK : GRASS_LIGHT, 0.35);
-    grass.fillCircle(x, y, r);
-  }
-
-  // --- Dirt road ---------------------------------------------------------
   const hw = track.halfWidth;
-  const outer = track.borders(hw + 9);
-  const mid = track.borders(hw + 3);
-  const inner = track.borders(hw);
-  fillBand(road, outer.left, outer.right, DIRT_EDGE); // dark rim
-  fillBand(road, mid.left, mid.right, DIRT_DARK); // shaded edge
-  fillBand(road, inner.left, inner.right, DIRT); // road surface
-  // Worn texture: scattered light/dark dirt patches along the road.
-  for (let s = 0; s < track.length; s += 14) {
-    const c = track.pointAt(s);
-    const tan = track.tangentAt(s);
-    const nx = -tan.y;
-    const ny = tan.x;
-    const off = (rand() * 2 - 1) * hw * 0.8;
-    const x = c.x + nx * off;
-    const y = c.y + ny * off;
-    road.fillStyle(rand() < 0.5 ? DIRT_LIGHT : DIRT_DARK, 0.25);
-    road.fillCircle(x, y, 3 + rand() * 5);
-  }
 
-  drawCheckered(road, track);
+  // --- Grass ground: tiled Kenney grass -----------------------------------
+  scene.add.tileSprite(0, 0, W, H, 'grass').setOrigin(0, 0).setDepth(-50);
 
-  // --- Scenery: pine trees + rocks (kept off the road) -------------------
-  const trees: { x: number; y: number; r: number }[] = [];
-  const rocks: { x: number; y: number; r: number }[] = [];
+  // --- Dirt road following the spline --------------------------------------
+  // Dark rim first (slightly wider stroke), then a full-screen dirt TileSprite
+  // clipped to the road ribbon by a geometry mask. The mask graphics is kept
+  // alive (not destroyed) — the mask samples it every frame.
+  const rim = scene.add.graphics().setDepth(-42);
+  rim.lineStyle(hw * 2 + 14, DIRT_EDGE, 1);
+  strokeCenter(rim, track);
+
+  const dirt = scene.add.tileSprite(0, 0, W, H, 'dirt').setOrigin(0, 0).setDepth(-40);
+  const maskG = scene.make.graphics({ x: 0, y: 0 }, false);
+  maskG.lineStyle(hw * 2, 0xffffff, 1);
+  strokeCenter(maskG, track);
+  dirt.setMask(maskG.createGeometryMask());
+
+  // --- Checkered start/finish line -----------------------------------------
+  const fin = scene.add.graphics().setDepth(-39);
+  drawCheckered(fin, track);
+
+  // --- Scenery: Kenney trees + rocks (kept off the road) -------------------
+  const trees: { x: number; y: number }[] = [];
   let tries = 0;
-  while (trees.length < 60 && tries < 4000) {
+  while (trees.length < 46 && tries < 4000) {
     tries++;
-    const x = 16 + rand() * (W - 32);
-    const y = 16 + rand() * (H - 32);
-    if (track.project({ x, y }).dist < hw + 30) continue; // off the road
-    if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < 44)) continue;
-    trees.push({ x, y, r: 13 + rand() * 12 });
+    const x = 20 + rand() * (W - 40);
+    const y = 20 + rand() * (H - 40);
+    if (track.project({ x, y }).dist < hw + 42) continue; // off the road
+    if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < 58)) continue;
+    trees.push({ x, y });
+    const key = rand() < 0.6 ? 'tree-large' : 'tree-small';
+    const size = 42 + rand() * 26;
+    scene.add
+      .image(x, y, key)
+      .setDisplaySize(size, size)
+      .setRotation(rand() * Math.PI * 2)
+      .setDepth(-30);
   }
-  for (let i = 0; i < 22; i++) {
-    const x = 16 + rand() * (W - 32);
-    const y = 16 + rand() * (H - 32);
-    if (track.project({ x, y }).dist < hw + 16) continue;
-    rocks.push({ x, y, r: 4 + rand() * 6 });
+  for (let i = 0; i < 18; i++) {
+    const x = 20 + rand() * (W - 40);
+    const y = 20 + rand() * (H - 40);
+    if (track.project({ x, y }).dist < hw + 20) continue;
+    const key = `rock${1 + Math.floor(rand() * 3)}`;
+    const size = 14 + rand() * 12;
+    scene.add
+      .image(x, y, key)
+      .setDisplaySize(size, size * 0.8)
+      .setRotation(rand() * Math.PI * 2)
+      .setDepth(-31);
   }
-
-  // Shadows first (down-right), then rocks, then tree canopies.
-  for (const t of trees) {
-    deco.fillStyle(TREE_SHADOW, 0.3);
-    deco.fillEllipse(t.x + t.r * 0.5, t.y + t.r * 0.7, t.r * 2.4, t.r * 1.5);
-  }
-  for (const k of rocks) {
-    deco.fillStyle(ROCK_DARK, 0.4);
-    deco.fillEllipse(k.x + 2, k.y + 3, k.r * 2.2, k.r * 1.4);
-    deco.fillStyle(ROCK, 1);
-    deco.fillCircle(k.x, k.y, k.r);
-  }
-  for (const t of trees) {
-    deco.fillStyle(TREE_DARK, 1);
-    deco.fillCircle(t.x, t.y, t.r);
-    deco.fillStyle(TREE_MID, 1);
-    deco.fillCircle(t.x - t.r * 0.18, t.y - t.r * 0.18, t.r * 0.72);
-    deco.fillStyle(TREE_LIGHT, 0.9);
-    deco.fillCircle(t.x - t.r * 0.32, t.y - t.r * 0.32, t.r * 0.38);
-  }
-
-  // Bake to a single static texture; drop the graphics so nothing heavy redraws.
-  const rt = scene.add.renderTexture(0, 0, W, H).setOrigin(0, 0).setDepth(-50);
-  rt.draw(grass);
-  grass.destroy();
 }
 
 /** Checkered start/finish line across the road. */

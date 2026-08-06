@@ -11,10 +11,19 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.image('car-yellow', 'assets/cars/car-yellow.png');
-    this.load.image('car-green', 'assets/cars/car-green.png');
-    this.load.image('car-blue', 'assets/cars/car-blue.png');
-    this.load.image('car-red', 'assets/cars/car-red.png');
+    // Kenney Racing Pack (CC0) — cars, ground tiles, scenery.
+    this.load.setPath('assets/kenney');
+    this.load.image('car-yellow', 'car-yellow.png');
+    this.load.image('car-green', 'car-green.png');
+    this.load.image('car-blue', 'car-blue.png');
+    this.load.image('car-red', 'car-red.png');
+    this.load.image('grass', 'grass.png');
+    this.load.image('dirt', 'dirt.png');
+    this.load.image('tree-large', 'tree_large.png');
+    this.load.image('tree-small', 'tree_small.png');
+    this.load.image('rock1', 'rock1.png');
+    this.load.image('rock2', 'rock2.png');
+    this.load.image('rock3', 'rock3.png');
   }
 
   async create(): Promise<void> {
