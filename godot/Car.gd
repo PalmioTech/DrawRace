@@ -13,8 +13,9 @@ extends RefCounted
 var traj: Dictionary        ## { points, speeds, curvatures, spacing, length }
 var s := 0.0                ## Arc length travelled along the trajectory.
 var speed := 0.0            ## Current forward speed (px/s).
-var slide := 0.0            ## Lateral slide offset magnitude (px).
-var slide_sign := 1.0       ## Direction (±1) the slide pushes (outside of corner).
+var slide := 0.0            ## SIGNED lateral slide offset (px). Eases through 0,
+                            ## so S-curves and drift-recovery never snap sides.
+var _slide_sign := 1.0      ## Latest outward direction (±1), from the curve side.
 
 var pos: Vector2
 var dir := Vector2(0, 1)
@@ -95,9 +96,14 @@ func update(dt: float, track: Track) -> void:
 	var over_gate := clampf((excess - over_margin) / over_margin, 0.0, 1.0)
 	var drift := 0.0 if off_track else corner_gate * over_gate
 	sliding = drift > 0.12
-	var slide_target := minf(GameConst.CAR_MAX_SLIDE, excess * GameConst.CAR_SLIDE_GAIN) * drift
-	# Build up gradually, recover quickly so the car straightens as the corner ends.
-	var rate := GameConst.CAR_SLIDE_EASE if slide_target >= slide else GameConst.CAR_SLIDE_RECOVER
+	# Outward direction = opposite the turn side; updated only in real corners.
+	if curv_abs > 1e-4:
+		_slide_sign = -signf(curv)
+	# SIGNED target: the sign rides along, so when the corner flips (S-curve) or
+	# ends, the slide eases THROUGH zero instead of jumping to the other side.
+	var slide_target := minf(GameConst.CAR_MAX_SLIDE, excess * GameConst.CAR_SLIDE_GAIN) * drift * _slide_sign
+	# Build up gradually (ease), return to the line gently (recover).
+	var rate := GameConst.CAR_SLIDE_EASE if absf(slide_target) > absf(slide) else GameConst.CAR_SLIDE_RECOVER
 	slide += (slide_target - slide) * minf(1.0, rate * dt)
 
 	# Accelerate / brake toward the effective target.
@@ -111,16 +117,13 @@ func update(dt: float, track: Track) -> void:
 	# Advance along the trajectory.
 	s += speed * dt
 
-	# Stable slide direction = outside of the corner = opposite the turn side.
-	if curv_abs > 1e-4:
-		slide_sign = -signf(curv)
-	var outward := Geo.perp(tangent) * slide_sign
-	var wanted := p + outward * slide
+	# Lateral offset: perp(tangent) scaled by the SIGNED slide.
+	var wanted := p + Geo.perp(tangent) * slide
 	# Low-pass the rendered position so residual noise can't snap the car.
 	pos = pos + (wanted - pos) * GameConst.CAR_RENDER_SMOOTH
 
 	# Drift yaw: rotate the heading off the tangent while sliding (visible drift).
-	var drift_angle := (slide / GameConst.CAR_MAX_SLIDE) * GameConst.CAR_DRIFT_MAX_ANGLE * slide_sign
+	var drift_angle := (slide / GameConst.CAR_MAX_SLIDE) * GameConst.CAR_DRIFT_MAX_ANGLE
 	dir = tangent.rotated(drift_angle)
 
 	_update_progress(track)
