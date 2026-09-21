@@ -53,7 +53,7 @@ const game = new Phaser.Game(config);
 if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
   const w = window as unknown as {
     __game: Phaser.Game;
-    __smoke: () => unknown;
+    __smoke: (circuitIndex?: number) => unknown;
     __raceDemo: () => void;
     __jitterTest: () => unknown;
     __recorderTest: () => unknown;
@@ -282,8 +282,10 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     });
   };
   // Headless core smoke test: run an AI-only race to completion and report.
-  w.__smoke = () => {
-    const track = buildCircuit(CIRCUITS[0]).track;
+  // `circuitIndex` (default 0) picks which CIRCUITS entry to race, so all
+  // three circuits can be smoke-tested without leaving the console.
+  w.__smoke = (circuitIndex = 0) => {
+    const track = buildCircuit(CIRCUITS[circuitIndex]).track;
     const cars = [0, 1, 2, 3].map(
       (k) =>
         new Car(
