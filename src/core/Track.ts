@@ -96,20 +96,6 @@ export class Track {
     return { left, right };
   }
 
-  /** Convenience: starting grid positions, staggered behind the start line. */
-  gridPositions(count: number): Vec2[] {
-    const back = scale(this.startDir, -28);
-    const lat = perp(this.startDir);
-    const out: Vec2[] = [];
-    for (let i = 0; i < count; i++) {
-      const row = Math.floor(i / 2);
-      const col = i % 2 === 0 ? -1 : 1;
-      const base = add(this.startPos, scale(back, row + 0.4));
-      out.push(add(base, scale(lat, col * this.halfWidth * 0.45)));
-    }
-    return out;
-  }
-
   /** Helper used by tests/AI: total length for N laps. */
   lapsLength(laps: number): number {
     return this.length * laps;
