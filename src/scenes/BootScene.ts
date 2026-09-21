@@ -1,7 +1,6 @@
 /**
- * Boot scene. The MVP draws everything procedurally with Graphics (no image
- * assets), so this just hands straight off to the menu. Asset preloading would
- * go here later.
+ * Boot scene. Preloads car sprites + track-side art, waits for web fonts, then
+ * hands off to the menu.
  */
 import Phaser from 'phaser';
 
@@ -11,19 +10,25 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Kenney Racing Pack (CC0) — cars, ground tiles, scenery.
+    // Kenney Racing Pack (CC0) — cars + grass ground.
     this.load.setPath('assets/kenney');
     this.load.image('car-yellow', 'car-yellow.png');
     this.load.image('car-green', 'car-green.png');
     this.load.image('car-blue', 'car-blue.png');
     this.load.image('car-red', 'car-red.png');
     this.load.image('grass', 'grass.png');
-    this.load.image('dirt', 'dirt.png');
-    this.load.image('tree-large', 'tree_large.png');
-    this.load.image('tree-small', 'tree_small.png');
-    this.load.image('rock1', 'rock1.png');
-    this.load.image('rock2', 'rock2.png');
-    this.load.image('rock3', 'rock3.png');
+
+    // Kenney Racing Kit (CC0) — top-down road tiles + track-side deco, rendered
+    // by the kit pipeline (Task 1). Key = filename without extension.
+    this.load.setPath('assets/kit');
+    const kitKeys = [
+      'barrierRed', 'barrierWhite', 'billboard', 'billboardLow', 'grandStand',
+      'grandStandAwning', 'grandStandCovered', 'lightColored', 'lightPostModern',
+      'overheadLights', 'pitsGarage', 'pitsOffice', 'pylon', 'roadCornerSmall',
+      'roadStart', 'roadStartPositions', 'roadStraight', 'tentLong',
+      'tentRoofDouble', 'treeLarge', 'treeSmall',
+    ];
+    for (const key of kitKeys) this.load.image(key, `${key}.png`);
   }
 
   async create(): Promise<void> {

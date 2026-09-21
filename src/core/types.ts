@@ -81,4 +81,5 @@ export interface RaceBuild {
   humanLoadouts: Loadout[];
   humanTrajectories: Trajectory[];
   currentHuman: number;
+  trackId: string;
 }

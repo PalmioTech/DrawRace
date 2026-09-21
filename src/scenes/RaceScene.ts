@@ -6,7 +6,7 @@
 import Phaser from 'phaser';
 import { COLORS, DESIGN, LAPS, CAR_TEXTURES, CAR_SPRITE_LEN } from '../config/constants';
 import type { RaceConfig, Vec2 } from '../core/types';
-import type { Track } from '../core/Track';
+import type { CircuitLayout } from '../core/CircuitTrack';
 import type { Car } from '../core/CarSim';
 import { RaceEngine } from '../core/RaceEngine';
 import { drawTrack } from '../ui/TrackView';
@@ -16,7 +16,7 @@ import { displayStyle, bodyStyle, glow, hex } from '../ui/theme';
 const TRAIL = 14;
 
 interface RaceData {
-  track: Track;
+  layout: CircuitLayout;
   cars: Car[];
   config: RaceConfig;
   trackId: string;
@@ -44,8 +44,8 @@ export class RaceScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { track, cars } = this.payload;
-    this.engine = new RaceEngine(track, cars);
+    const { layout, cars } = this.payload;
+    this.engine = new RaceEngine(layout.track, cars);
 
     // Phaser reuses the scene instance across restarts, so reset run state here
     // (field initializers only run once). Without this, a 2nd race sees
@@ -59,7 +59,7 @@ export class RaceScene extends Phaser.Scene {
     this.eliminatedShown.clear();
     this.sprites.clear();
 
-    drawTrack(this, track);
+    drawTrack(this, layout);
 
     this.carsG = this.add.graphics().setDepth(20);
     cars.forEach((c) => {

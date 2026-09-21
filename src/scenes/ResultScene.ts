@@ -115,6 +115,7 @@ export class ResultScene extends Phaser.Scene {
       humanLoadouts: [],
       humanTrajectories: [],
       currentHuman: 0,
+      trackId: this.payload.trackId,
     };
     this.registry.set('raceBuild', build);
     this.scene.start('Setup');

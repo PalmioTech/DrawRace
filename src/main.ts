@@ -259,7 +259,7 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
   };
   // Jump straight into a 4-car AI race to eyeball the RaceScene rendering.
   w.__raceDemo = () => {
-    const track = buildCircuit(CIRCUITS[0]).track;
+    const layout = buildCircuit(CIRCUITS[0]);
     const colors = [0x2de2e6, 0xff2e97, 0xffe600, 0x7cff6b];
     const cars = [0, 1, 2, 3].map(
       (k) =>
@@ -268,14 +268,14 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
           'ai',
           `CPU${k + 1}`,
           colors[k],
-          buildAITrajectory(track, 'normal', 200 + k * 9, baseStats()),
-          track,
+          buildAITrajectory(layout.track, 'normal', 200 + k * 9, baseStats()),
+          layout.track,
           baseStats(),
         ),
     );
     game.scene.stop('Menu');
     game.scene.start('Race', {
-      track,
+      layout,
       cars,
       config: { mode: 'ai', carCount: 4, difficulty: 'normal' },
       trackId: CIRCUITS[0].id,

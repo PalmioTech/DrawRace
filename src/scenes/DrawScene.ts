@@ -9,7 +9,7 @@ import { COLORS, DESIGN, LAPS, PATH_SPACING, DRAW, CAR_LABELS } from '../config/
 import type { RaceBuild, Trajectory } from '../core/types';
 import { Track } from '../core/Track';
 import { CIRCUITS } from '../data/circuits';
-import { buildCircuit } from '../core/CircuitTrack';
+import { buildCircuit, type CircuitLayout } from '../core/CircuitTrack';
 import { PathRecorder } from '../core/PathRecorder';
 import { buildHumanTrajectory } from '../core/SpeedProfile';
 import { buildAITrajectory } from '../core/AIDriver';
@@ -30,6 +30,8 @@ export class DrawScene extends Phaser.Scene {
   /** Shared build state (one human draws per invocation). */
   private build!: RaceBuild;
   private track!: Track;
+  private layout!: CircuitLayout;
+  private circuitId!: string;
   private recorder!: PathRecorder;
 
   private drawing = false;
@@ -50,13 +52,13 @@ export class DrawScene extends Phaser.Scene {
   }
 
   create(): void {
-    // TEMPORARY bridge: builds the geometry but not the tile art (Task 4 rewires
-    // DrawScene to render the layout's pieces; TrackView still draws the old
-    // dirt-road visual on this new centerline until then).
-    this.track = buildCircuit(CIRCUITS[0]).track;
+    const circuit = CIRCUITS.find((c) => c.id === this.build.trackId) ?? CIRCUITS[0];
+    this.circuitId = circuit.id;
+    this.layout = buildCircuit(circuit);
+    this.track = this.layout.track;
     this.recorder = new PathRecorder(this.track);
 
-    drawTrack(this, this.track);
+    drawTrack(this, this.layout);
     this.lineG = this.add.graphics().setDepth(10);
 
     // Start marker: a pulsing dot at the start line so it's clear where the
@@ -269,7 +271,7 @@ export class DrawScene extends Phaser.Scene {
       colorIdx++;
     }
 
-    this.scene.start('Race', { track: this.track, cars, config: b.config, trackId: CIRCUITS[0].id });
+    this.scene.start('Race', { layout: this.layout, cars, config: b.config, trackId: this.circuitId });
   }
 
   private cleanupInput(): void {

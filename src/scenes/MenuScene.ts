@@ -126,6 +126,7 @@ export class MenuScene extends Phaser.Scene {
       humanLoadouts: [],
       humanTrajectories: [],
       currentHuman: 0,
+      trackId: CIRCUITS[0].id, // TODO(Task 5): menu track selector
     };
     this.registry.set('raceBuild', build);
     this.scene.start('Setup');

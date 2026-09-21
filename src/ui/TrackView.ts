@@ -1,18 +1,16 @@
 /**
- * Renders the track scene in a top-down RALLY style using the Kenney Racing
- * Pack textures (CC0): tiled grass ground, a dirt road that follows the spline
- * (dirt tile clipped by a geometry mask), scattered trees + rocks, and a
- * checkered start/finish line. All layers are static, drawn once per scene.
+ * Renders the track scene by baking Kenney Racing Kit top-down PNGs (CC0) into
+ * a single static RenderTexture: pack grass ground, road tiles (straights,
+ * corners, start/grid) from the circuit layout, scattered kit trees, and
+ * circuit deco (grandstands, billboards, barriers, ...). Everything is drawn
+ * once — no per-frame cost.
  *
- * Layer depths: grass (-50) < road rim (-42) < road (-40) < finish (-39)
- * < scenery (-30) < (drawn line 10, cars 25).
+ * Depth: baked RenderTexture (-50) < drawn line (10) < cars (25).
  */
 import Phaser from 'phaser';
-import type { Track } from '../core/Track';
+import type { CircuitLayout, PiecePlacement } from '../core/CircuitTrack';
+import { KIT } from '../config/kit';
 import { DESIGN } from '../config/constants';
-
-/** Dark worn edge around the dirt road. */
-const DIRT_EDGE = 0x53401f;
 
 /** Tiny seeded PRNG (mulberry32) so scenery is varied but stable per build. */
 function rng(seed: number): () => number {
@@ -26,100 +24,40 @@ function rng(seed: number): () => number {
   };
 }
 
-/** Stroke the closed track centerline into a graphics object. */
-function strokeCenter(g: Phaser.GameObjects.Graphics, track: Track): void {
-  const pts = track.center;
-  g.beginPath();
-  g.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
-  g.closePath();
-  g.strokePath();
-}
-
-export function drawTrack(scene: Phaser.Scene, track: Track): void {
+export function drawTrack(scene: Phaser.Scene, layout: CircuitLayout): void {
   const { width: W, height: H } = DESIGN;
-  const rand = rng(20260624);
-  const hw = track.halfWidth;
+  const rt = scene.add.renderTexture(0, 0, W, H).setOrigin(0, 0).setDepth(-50);
 
-  // --- Grass ground: tiled Kenney grass -----------------------------------
-  scene.add.tileSprite(0, 0, W, H, 'grass').setOrigin(0, 0).setDepth(-50);
+  // Ground fill: kit road tiles bake their own opaque grass verge right to the
+  // tile edge — sampled at roadStraight.png's edge pixel (row 128, col 0) it's
+  // a flat (110,146,130). The pack's tiled grass.png is a much more saturated,
+  // bladed (39,175,96), so laying it under the tiles produced a hard seam
+  // around every road piece. Flat-filling the tile's own verge color instead
+  // reads seamless (screenshot-verified) — see task-4-report.md.
+  rt.fill(0x6e9282, 1, 0, 0, W, H);
 
-  // --- Dirt road following the spline --------------------------------------
-  // Dark rim first (slightly wider stroke), then a full-screen dirt TileSprite
-  // clipped to the road ribbon by a geometry mask. The mask graphics is kept
-  // alive (not destroyed) — the mask samples it every frame.
-  const rim = scene.add.graphics().setDepth(-42);
-  rim.lineStyle(hw * 2 + 14, DIRT_EDGE, 1);
-  strokeCenter(rim, track);
-
-  const dirt = scene.add.tileSprite(0, 0, W, H, 'dirt').setOrigin(0, 0).setDepth(-40);
-  const maskG = scene.make.graphics({ x: 0, y: 0 }, false);
-  maskG.lineStyle(hw * 2, 0xffffff, 1);
-  strokeCenter(maskG, track);
-  dirt.setMask(maskG.createGeometryMask());
-
-  // --- Checkered start/finish line -----------------------------------------
-  const fin = scene.add.graphics().setDepth(-39);
-  drawCheckered(fin, track);
-
-  // --- Scenery: Kenney trees + rocks (kept off the road) -------------------
-  const trees: { x: number; y: number }[] = [];
+  const tmp = scene.make.image({ add: false });
+  const stamp = (p: PiecePlacement) => {
+    tmp.setTexture(p.key);
+    // every kit PNG was rendered at KIT.pxPerUnit px per world unit
+    const s = layout.cellPx / KIT.pxPerUnit;
+    tmp.setScale(s).setRotation(p.rot).setPosition(p.x, p.y);
+    rt.draw(tmp);
+  };
+  // scenery trees: same rejection-sampled scatter as before, but kit sprites
+  const rand = rng(20260921);
+  const treeScatter: PiecePlacement[] = [];
   let tries = 0;
-  while (trees.length < 46 && tries < 4000) {
+  while (treeScatter.length < 26 && tries < 3000) {
     tries++;
     const x = 20 + rand() * (W - 40);
     const y = 20 + rand() * (H - 40);
-    if (track.project({ x, y }).dist < hw + 42) continue; // off the road
-    if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < 58)) continue;
-    trees.push({ x, y });
-    const key = rand() < 0.6 ? 'tree-large' : 'tree-small';
-    const size = 42 + rand() * 26;
-    scene.add
-      .image(x, y, key)
-      .setDisplaySize(size, size)
-      .setRotation(rand() * Math.PI * 2)
-      .setDepth(-30);
+    if (layout.track.project({ x, y }).dist < layout.track.halfWidth + layout.cellPx * 0.55) continue;
+    if (treeScatter.some((t) => Math.hypot(t.x - x, t.y - y) < 64)) continue;
+    treeScatter.push({ key: rand() < 0.6 ? 'treeLarge' : 'treeSmall', x, y, rot: rand() * Math.PI * 2 });
   }
-  for (let i = 0; i < 18; i++) {
-    const x = 20 + rand() * (W - 40);
-    const y = 20 + rand() * (H - 40);
-    if (track.project({ x, y }).dist < hw + 20) continue;
-    const key = `rock${1 + Math.floor(rand() * 3)}`;
-    const size = 14 + rand() * 12;
-    scene.add
-      .image(x, y, key)
-      .setDisplaySize(size, size * 0.8)
-      .setRotation(rand() * Math.PI * 2)
-      .setDepth(-31);
-  }
-}
-
-/** Checkered start/finish line across the road. */
-function drawCheckered(g: Phaser.GameObjects.Graphics, track: Track): void {
-  const a = track.startB; // one edge
-  const dir = track.startDir; // forward
-  // along-line unit vector (from B to A)
-  const ax = track.startA.x - track.startB.x;
-  const ay = track.startA.y - track.startB.y;
-  const lineLen = Math.hypot(ax, ay);
-  const ux = ax / lineLen;
-  const uy = ay / lineLen;
-  const cell = 13;
-  const cols = Math.max(2, Math.round(lineLen / cell));
-  const rows = 2;
-  for (let c = 0; c < cols; c++) {
-    for (let r = 0; r < rows; r++) {
-      const black = (c + r) % 2 === 0;
-      const bx = a.x + ux * (c * cell) - dir.x * (rows / 2) * cell + dir.x * (r * cell);
-      const by = a.y + uy * (c * cell) - dir.y * (rows / 2) * cell + dir.y * (r * cell);
-      g.fillStyle(black ? 0x1a1a1a : 0xf4f4f4, 1);
-      g.beginPath();
-      g.moveTo(bx, by);
-      g.lineTo(bx + ux * cell, by + uy * cell);
-      g.lineTo(bx + ux * cell + dir.x * cell, by + uy * cell + dir.y * cell);
-      g.lineTo(bx + dir.x * cell, by + dir.y * cell);
-      g.closePath();
-      g.fillPath();
-    }
-  }
+  for (const p of layout.pieces) stamp(p);
+  for (const p of treeScatter) stamp(p);
+  for (const p of layout.deco) stamp(p);
+  tmp.destroy();
 }
