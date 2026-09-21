@@ -23,4 +23,11 @@ export const KIT = {
  *   are opaque asphalt). The grass/curb corner cutout sits in the NW corner
  *   of the tile.
  * Rotation tables in CircuitTrack.ts must be written against these actual
- * orientations, not the south/west example in the original brief. */
+ * orientations, not the south/west example in the original brief.
+ * - Dropped: flagCheckers.png, flagRed.png, flagGreen.png were rendered but
+ *   deleted — a flag banner mesh is a thin vertical plane that's edge-on to
+ *   a straight-down camera, so all three came out as byte-identical gray
+ *   blobs, indistinguishable and unusable as art. pitsGarageClosed.png was
+ *   also deleted as a byte-identical duplicate of pitsGarage.png (unused
+ *   spare). Later tasks must not reference flag* or pitsGarageClosed
+ *   textures — they don't exist under public/assets/kit/. */
