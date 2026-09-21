@@ -78,6 +78,7 @@ export function buildCircuit(def: CircuitDef): CircuitLayout {
   const pieces: PiecePlacement[] = [];
   const center: Vec2[] = [];
   const STEP = 8; // px between straight samples
+  let steps0 = 0; // sample count of the start cell's straight (cell i===0)
   for (let i = 0; i < n; i++) {
     const prev = cells[(i - 1 + n) % n];
     const cur = cells[i];
@@ -90,6 +91,7 @@ export function buildCircuit(def: CircuitDef): CircuitLayout {
       const d = DIRS[dOut];
       const a = { x: cc.x - (d[0] * cellPx) / 2, y: cc.y - (d[1] * cellPx) / 2 };
       const steps = Math.max(2, Math.round(cellPx / STEP));
+      if (i === 0) steps0 = steps;
       for (let s = 0; s < steps; s++) {
         center.push({ x: a.x + (d[0] * cellPx * s) / steps, y: a.y + (d[1] * cellPx * s) / steps });
       }
@@ -117,8 +119,15 @@ export function buildCircuit(def: CircuitDef): CircuitLayout {
     }
   }
 
+  // The painted start/finish art (roadStart.png) is a band across the tile
+  // CENTER, but center[0] above is the start cell's ENTRY edge (half a cell
+  // before the art). Rotate the closed loop so index 0 lands at the start
+  // cell's center instead, so Track's start line matches the painted line.
+  const k = Math.floor(steps0 / 2);
+  const rotated = center.slice(k).concat(center.slice(0, k));
+
   const halfWidth = (cellPx * KIT.roadSurfaceFrac) / 2;
-  const track = new Track(center, halfWidth);
+  const track = new Track(rotated, halfWidth);
   const deco: PiecePlacement[] = def.deco.map((d) => ({
     key: d.key,
     x: originX + (d.cell[0] + 0.5) * cellPx,

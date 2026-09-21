@@ -1,9 +1,9 @@
 /**
  * Renders the track scene by baking Kenney Racing Kit top-down PNGs (CC0) into
- * a single static RenderTexture: pack grass ground, road tiles (straights,
- * corners, start/grid) from the circuit layout, scattered kit trees, and
- * circuit deco (grandstands, billboards, barriers, ...). Everything is drawn
- * once — no per-frame cost.
+ * a single static RenderTexture: a flat verge-color ground fill, road tiles
+ * (straights, corners, start/grid) from the circuit layout, scattered kit
+ * trees, and circuit deco (grandstands, billboards, barriers, ...). Everything
+ * is drawn once — no per-frame cost.
  *
  * Depth: baked RenderTexture (-50) < drawn line (10) < cars (25).
  */

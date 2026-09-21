@@ -10,13 +10,12 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Kenney Racing Pack (CC0) — cars + grass ground.
+    // Kenney Racing Pack (CC0) — cars.
     this.load.setPath('assets/kenney');
     this.load.image('car-yellow', 'car-yellow.png');
     this.load.image('car-green', 'car-green.png');
     this.load.image('car-blue', 'car-blue.png');
     this.load.image('car-red', 'car-red.png');
-    this.load.image('grass', 'grass.png');
 
     // Kenney Racing Kit (CC0) — top-down road tiles + track-side deco, rendered
     // by the kit pipeline (Task 1). Key = filename without extension.
@@ -24,7 +23,7 @@ export class BootScene extends Phaser.Scene {
     const kitKeys = [
       'barrierRed', 'barrierWhite', 'billboard', 'billboardLow', 'grandStand',
       'grandStandAwning', 'grandStandCovered', 'lightColored', 'lightPostModern',
-      'overheadLights', 'pitsGarage', 'pitsOffice', 'pylon', 'roadCornerSmall',
+      'pitsGarage', 'pitsOffice', 'pylon', 'roadCornerSmall',
       'roadStart', 'roadStartPositions', 'roadStraight', 'tentLong',
       'tentRoofDouble', 'treeLarge', 'treeSmall',
     ];
