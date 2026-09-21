@@ -8,7 +8,7 @@ import type { Difficulty, GameMode, RaceConfig, RaceBuild } from '../core/types'
 import { makeButton, type Button } from '../ui/Button';
 import { addBackground, displayStyle, bodyStyle, glow } from '../ui/theme';
 import { save } from '../data/SaveManager';
-import { NEON_LOOP } from '../data/tracks';
+import { CIRCUITS } from '../data/circuits';
 
 export class MenuScene extends Phaser.Scene {
   private mode: GameMode = 'ai';
@@ -39,7 +39,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setLetterSpacing?.(4);
 
-    const best = save.getBestTime(NEON_LOOP.id);
+    const best = save.getBestTime(CIRCUITS[0].id);
     const bestText = this.add
       .text(cx, 138, best ? `BEST ${best.toFixed(2)}s` : 'NO RECORD YET', bodyStyle(18, COLORS.accent, '700'))
       .setOrigin(0.5);

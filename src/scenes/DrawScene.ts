@@ -8,7 +8,8 @@ import Phaser from 'phaser';
 import { COLORS, DESIGN, LAPS, PATH_SPACING, DRAW, CAR_LABELS } from '../config/constants';
 import type { RaceBuild, Trajectory } from '../core/types';
 import { Track } from '../core/Track';
-import { NEON_LOOP } from '../data/tracks';
+import { CIRCUITS } from '../data/circuits';
+import { buildCircuit } from '../core/CircuitTrack';
 import { PathRecorder } from '../core/PathRecorder';
 import { buildHumanTrajectory } from '../core/SpeedProfile';
 import { buildAITrajectory } from '../core/AIDriver';
@@ -49,7 +50,10 @@ export class DrawScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.track = new Track(NEON_LOOP);
+    // TEMPORARY bridge: builds the geometry but not the tile art (Task 4 rewires
+    // DrawScene to render the layout's pieces; TrackView still draws the old
+    // dirt-road visual on this new centerline until then).
+    this.track = buildCircuit(CIRCUITS[0]).track;
     this.recorder = new PathRecorder(this.track);
 
     drawTrack(this, this.track);
@@ -265,7 +269,7 @@ export class DrawScene extends Phaser.Scene {
       colorIdx++;
     }
 
-    this.scene.start('Race', { track: this.track, cars, config: b.config, trackId: NEON_LOOP.id });
+    this.scene.start('Race', { track: this.track, cars, config: b.config, trackId: CIRCUITS[0].id });
   }
 
   private cleanupInput(): void {

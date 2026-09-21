@@ -1,28 +1,15 @@
 /**
- * Track geometry: builds a dense centerline polyline from a TrackDef, exposes
- * border polylines for rendering, the start/finish line, and projection helpers
- * used for off-track tests, lap counting and race-progress ranking.
+ * Track geometry: wraps a prebuilt dense centerline polyline, exposes border
+ * polylines for rendering, the start/finish line, and projection helpers used
+ * for off-track tests, lap counting and race-progress ranking.
  *
  * Pure logic — no Phaser dependency.
  */
-import type { TrackDef } from '../data/tracks';
 import type { Vec2 } from './types';
 import type { Projection } from './Geometry';
-import {
-  sampleClosedSpline,
-  cumulativeLengths,
-  projectToPolyline,
-  normalize,
-  perp,
-  sub,
-  add,
-  scale,
-  dist,
-} from './Geometry';
-import { PLAY_AREA } from '../config/constants';
+import { cumulativeLengths, projectToPolyline, normalize, perp, sub, add, scale, dist } from './Geometry';
 
 export class Track {
-  readonly def: TrackDef;
   /** Dense closed centerline polyline (last point ≈ first). */
   readonly center: Vec2[];
   /** Cumulative arc length along `center`. */
@@ -39,47 +26,24 @@ export class Track {
   /** Center of the start line. */
   readonly startPos: Vec2;
 
-  constructor(def: TrackDef, area: { x: number; y: number; w: number; h: number } = PLAY_AREA) {
-    this.def = def;
-    this.halfWidth = def.halfWidth;
-
-    // Fit the control points into the play area (scaled to fill it, inset by the
-    // track width). Draw input and race rendering then share the same big map.
-    const fitted = Track.fitControls(def.controls, area, def.halfWidth + 34);
-
-    // Build the centerline and close the loop explicitly for clean projection.
-    const dense = sampleClosedSpline(fitted, 18);
-    dense.push(dense[0]);
+  /**
+   * @param center dense CLOSED polyline (last point ≈ first) starting AT the
+   * start line, already in design px, travel = array order.
+   */
+  constructor(center: Vec2[], halfWidth: number) {
+    this.halfWidth = halfWidth;
+    const dense = [...center];
+    if (Math.hypot(dense[0].x - dense[dense.length - 1].x, dense[0].y - dense[dense.length - 1].y) > 1e-3) {
+      dense.push({ ...dense[0] });
+    }
     this.center = dense;
     this.cum = cumulativeLengths(dense);
     this.length = this.cum[this.cum.length - 1];
-
-    // Start line: perpendicular to the centerline at point 0.
     this.startPos = this.center[0];
     this.startDir = normalize(sub(this.center[1], this.center[0]));
     const side = scale(perp(this.startDir), this.halfWidth);
     this.startA = add(this.startPos, side);
     this.startB = sub(this.startPos, side);
-  }
-
-  /** Scale + translate control points to fill `area` (inset on all sides). */
-  private static fitControls(
-    controls: Vec2[],
-    area: { x: number; y: number; w: number; h: number },
-    inset: number,
-  ): Vec2[] {
-    const xs = controls.map((p) => p.x);
-    const ys = controls.map((p) => p.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    const sx = (area.w - 2 * inset) / (maxX - minX);
-    const sy = (area.h - 2 * inset) / (maxY - minY);
-    return controls.map((p) => ({
-      x: area.x + inset + (p.x - minX) * sx,
-      y: area.y + inset + (p.y - minY) * sy,
-    }));
   }
 
   /** Project a point onto the centerline (distance + arc-length position). */

@@ -45,25 +45,6 @@ export function catmullRom(p0: Vec2, p1: Vec2, p2: Vec2, p3: Vec2, t: number): V
 }
 
 /**
- * Sample a CLOSED Catmull-Rom loop through `controls`, producing a dense
- * polyline. Used to build the track centerline from a handful of control points.
- */
-export function sampleClosedSpline(controls: Vec2[], samplesPerSeg = 16): Vec2[] {
-  const n = controls.length;
-  const out: Vec2[] = [];
-  for (let i = 0; i < n; i++) {
-    const p0 = controls[(i - 1 + n) % n];
-    const p1 = controls[i];
-    const p2 = controls[(i + 1) % n];
-    const p3 = controls[(i + 2) % n];
-    for (let s = 0; s < samplesPerSeg; s++) {
-      out.push(catmullRom(p0, p1, p2, p3, s / samplesPerSeg));
-    }
-  }
-  return out;
-}
-
-/**
  * Sample an OPEN Catmull-Rom spline through `points` (endpoints duplicated),
  * producing a dense polyline. Used to smooth a raw finger stroke.
  */
