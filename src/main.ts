@@ -22,6 +22,8 @@ import { PathRecorder } from './core/PathRecorder';
 import { PATH_SPACING, LAPS, CAR, SETUP } from './config/constants';
 import type { Difficulty, Loadout } from './core/types';
 import { NEON_LOOP } from './data/tracks';
+import { CIRCUITS } from './data/circuits';
+import { validateCircuit } from './core/CircuitTrack';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO, // WebGL with Canvas fallback
@@ -60,6 +62,7 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     __elimTest: (bumps?: number) => unknown;
     __statsTest: () => unknown;
     __slideTest: (dtMs: number) => unknown;
+    __circuitTest: () => unknown;
   };
   w.__game = game;
   // Verify stat resolution + AI loadout validity.
@@ -313,4 +316,6 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       trackLen: Math.round(track.length),
     };
   };
+  // Verify all circuit definitions pass structural validation.
+  w.__circuitTest = () => CIRCUITS.map((d) => ({ id: d.id, problems: validateCircuit(d) }));
 }
