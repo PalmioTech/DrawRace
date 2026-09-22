@@ -28,7 +28,12 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: 'game',
   backgroundColor: COLORS.bg,
   scale: {
-    mode: Phaser.Scale.FIT, // fit the fixed design resolution to any screen
+    // ENVELOP: cover the WHOLE screen, never letterbox. DESIGN already matches
+    // the device aspect at boot, so normally this is an exact fill; when the
+    // live viewport drifts from it (phone browser toolbars showing/hiding),
+    // the mismatch sliver gets cropped at the edges (just grass margin)
+    // instead of showing side bars.
+    mode: Phaser.Scale.ENVELOP,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: DESIGN.width,
     height: DESIGN.height,
