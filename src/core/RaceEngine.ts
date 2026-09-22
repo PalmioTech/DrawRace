@@ -54,12 +54,11 @@ export class RaceEngine {
   }
 
   /**
-   * Live ranking: eliminated cars always last; among the rest, finishers first
-   * (by finish time), then still-racing cars by progress.
+   * Live ranking: finishers first (by finish time), then still-racing cars by
+   * progress.
    */
   ranking(): RankEntry[] {
     const sorted = [...this.cars].sort((a, b) => {
-      if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
       if (a.finished && b.finished) return a.finishTime - b.finishTime;
       if (a.finished) return -1;
       if (b.finished) return 1;

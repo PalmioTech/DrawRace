@@ -18,7 +18,7 @@ const STAT_HINTS: Record<StatKey, string> = {
   speed: 'punta piu alta sui dritti',
   brake: 'rallenta meglio in curva',
   accel: 'riprende prima dopo le curve',
-  offroad: 'tollera piu uscite di pista',
+  offroad: 'piu veloce fuori pista',
 };
 
 const ROW_Y = (i: number) => 168 + i * 96;

@@ -52,13 +52,12 @@ export function resolveStats(loadout: Loadout): CarStats {
     brake: CAR.brake * (1 + STAT_SCALING.brake * l.brake),
     maxLatAccel: CAR.maxLatAccel * (1 + STAT_SCALING.gripLat * l.grip),
     slideGain: CAR.slideGain * (1 - STAT_SCALING.gripSlide * l.grip),
-    eliminateAfterOffRuns: CAR.eliminateAfterOffRuns + STAT_SCALING.offroad * l.offroad,
+    offTrackMaxSpeed: CAR.offTrackMaxSpeed * (1 + STAT_SCALING.offroad * l.offroad),
+    offTrackMinSpeed: CAR.offTrackMinSpeed * (1 + STAT_SCALING.offroad * l.offroad),
     // Unscaled passthroughs.
     slideEase: CAR.slideEase,
     maxSlide: CAR.maxSlide,
     renderSmooth: CAR.renderSmooth,
-    offTrackGrip: CAR.offTrackGrip,
-    minOnGapPx: CAR.minOnGapPx,
   };
 }
 

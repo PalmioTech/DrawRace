@@ -81,43 +81,37 @@ export const CAR = {
    * corner sharpness is already inherent: a sharp corner has a low max corner
    * speed, so the same drawn speed produces a larger over-speed → more slide.
    */
-  slideGain: 0.18,
+  slideGain: 0.26,
   /** Curvature below this counts as a straight → NO slide (just accelerate). */
   cornerSlideMin: 0.004,
   /** Curvature at/above this is a full corner → slide at full strength. */
-  cornerSlideFull: 0.009,
+  cornerSlideFull: 0.007,
   /** Min over-speed (px/s, plus a fraction of corner speed) before any drift. */
-  driftSpeedMargin: 28,
+  driftSpeedMargin: 16,
   /** Corner-sharpness factor must exceed this for any drift (both conditions). */
-  driftCornerMin: 0.2,
+  driftCornerMin: 0.12,
   /** How fast the slide builds toward its target (per-second rate). */
-  slideEase: 5,
+  slideEase: 7,
   /** How fast the slide returns to the line when recovering (eased, not snapped,
    * so it doesn't jerk when the drift ends). */
   slideRecover: 9,
   /** Max lateral slide offset (px) — big overcooks can drift right off the track.
-   * (Headroom for the DRIFT grip-falloff curve; off-track counting uses the
-   * clean path point, so a wide slide is visual, not an excursion.) */
-  maxSlide: 60,
+   * (Off-track detection uses the clean path point, so a wide slide is visual.) */
+  maxSlide: 78,
   /** Max yaw angle (rad) the car rotates while fully sliding (drift look). */
-  driftMaxAngle: 0.45,
+  driftMaxAngle: 0.8,
   /** Finish power-slide duration (s) and lateral arc (px) — the pretty ending. */
   finishDuration: 1.5,
   finishBulge: 40,
   /** Low-pass factor for the rendered position (0..1 per tick). Lower = smoother. */
   renderSmooth: 0.22,
-  /** Speed multiplier while off the track surface (grass/sand). */
-  offTrackGrip: 0.6,
-  /** Off-track the car is capped to this speed — slow but never stops. */
+  /** Off-track the car is capped to this speed — slow but never stops.
+   * Going off is a TIME penalty only: there is no elimination. */
   offTrackMaxSpeed: 230,
   /** Off-track minimum speed — keeps it rolling, never blocks. */
   offTrackMinSpeed: 160,
   /** Gentler braking when rolling onto grass (so it eases, not slams to a stop). */
   offTrackBrake: 600,
-  /** Number of off-track excursions before a car is eliminated. */
-  eliminateAfterOffRuns: 2,
-  /** Min on-track distance (px) between counted excursions (debounces edge jitter). */
-  minOnGapPx: 70,
   /** Visual radius of a car. */
   radius: 13,
 } as const;
@@ -131,8 +125,8 @@ export const DRIFT = {
   /** Yaw spring stiffness (rad/s² per rad of error). Higher = snappier kick. */
   yawSpring: 90,
   /** Yaw damping. Underdamped vs the spring → visible overshoot + one
-   * countersteer swing on recovery (ζ ≈ 0.47). */
-  yawDamping: 9,
+   * countersteer swing on recovery (ζ ≈ 0.34 — dramatic kick). */
+  yawDamping: 6.5,
   /** Over-speed (px/s) where tire grip peaks (friction-curve extremum).
    * Beyond it grip falls off: longer, wider slides. */
   extremumExcess: 110,
@@ -144,8 +138,8 @@ export const DRIFT = {
   skidRearOffset: 18,
   skidHalfTrack: 9,
   /** Skidmark stamp alpha + radius (px). */
-  skidAlpha: 0.22,
-  skidWidth: 4.5,
+  skidAlpha: 0.32,
+  skidWidth: 5.5,
 } as const;
 
 /** Pre-race car setup: point budget + max level per stat. */
@@ -168,8 +162,9 @@ export const STAT_SCALING = {
   brake: 0.2,
   /** Accel: +acceleration per level. */
   accel: 0.18,
-  /** Offroad: extra tolerated off-track excursions per level (absolute, +1). */
-  offroad: 1,
+  /** Offroad (TENUTA): higher off-track cruise speed per level (fraction).
+   * (There is no elimination — off-track is purely a speed penalty.) */
+  offroad: 0.14,
 } as const;
 
 /**

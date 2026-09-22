@@ -12,7 +12,7 @@ import { RaceEngine } from '../core/RaceEngine';
 import { drawTrack } from '../ui/TrackView';
 import { Hud } from '../ui/Hud';
 import { makeButton } from '../ui/Button';
-import { displayStyle, bodyStyle, glow, hex } from '../ui/theme';
+import { displayStyle, glow, hex } from '../ui/theme';
 const TRAIL = 14;
 
 interface RaceData {
@@ -32,7 +32,6 @@ export class RaceScene extends Phaser.Scene {
   private skidG!: Phaser.GameObjects.Graphics;
   private sprites = new Map<number, Phaser.GameObjects.Image>();
   private trails = new Map<number, Vec2[]>();
-  private eliminatedShown = new Set<number>();
   private started = false;
   private done = false;
   private paused = false;
@@ -59,7 +58,6 @@ export class RaceScene extends Phaser.Scene {
     this.pauseUI = undefined;
     this.time.paused = false;
     this.trails.clear();
-    this.eliminatedShown.clear();
     this.sprites.clear();
 
     drawTrack(this, layout);
@@ -165,15 +163,6 @@ export class RaceScene extends Phaser.Scene {
       const py = car.prevRenderPos.y + (car.pos.y - car.prevRenderPos.y) * a;
       const dx = car.prevRenderDir.x + (car.dir.x - car.prevRenderDir.x) * a;
       const dy = car.prevRenderDir.y + (car.dir.y - car.prevRenderDir.y) * a;
-      // Eliminated: car is removed from the track. Flash "ELIMINATO" once.
-      if (car.eliminated) {
-        sprite?.setVisible(false);
-        if (!this.eliminatedShown.has(car.id)) {
-          this.eliminatedShown.add(car.id);
-          this.flashEliminated(px, py, car.color);
-        }
-        continue;
-      }
       const hist = this.trails.get(car.id)!;
       if (this.started) {
         hist.push({ x: px, y: py });
@@ -217,18 +206,6 @@ export class RaceScene extends Phaser.Scene {
     }
   }
 
-  /** One-shot "ELIMINATO" burst where a car left the race. */
-  private flashEliminated(x: number, y: number, color: number): void {
-    const burst = this.add.circle(x, y, CAR_SPRITE_LEN * 0.5, color, 0.9).setDepth(80);
-    this.tweens.add({ targets: burst, scale: 2.4, alpha: 0, duration: 450, onComplete: () => burst.destroy() });
-    const label = this.add
-      .text(x, y - 24, 'ELIMINATO', bodyStyle(22, COLORS.accent, '700'))
-      .setOrigin(0.5)
-      .setDepth(81);
-    glow(label, COLORS.accent, 1);
-    this.tweens.add({ targets: label, y: y - 60, alpha: 0, duration: 1100, onComplete: () => label.destroy() });
-  }
-
   private finish(): void {
     const ranking = this.engine.ranking();
     const results = ranking.map((e) => ({
@@ -237,11 +214,9 @@ export class RaceScene extends Phaser.Scene {
       position: e.position,
       finishTime: e.car.finishTime,
       kind: e.car.kind,
-      eliminated: e.car.eliminated,
     }));
-    // Only real (non-eliminated) human finishes count toward the best time.
     const humanTimes = this.payload.cars
-      .filter((c) => c.kind === 'human' && !c.eliminated)
+      .filter((c) => c.kind === 'human')
       .map((c) => c.finishTime);
     const humanBest = humanTimes.length ? Math.min(...humanTimes) : 0;
 

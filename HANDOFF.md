@@ -70,7 +70,8 @@ the duplicate `pitsGarageClosed`.
   Old spline-fitted single-track system (`NEON_LOOP`/`TrackDef`/`data/tracks.ts`,
   `sampleClosedSpline`) is gone.
 - Physics: corner speed limit, **drift** (slide + yaw) only on sharp+fast corners,
-  off-track = slow cruise (never blocks), eliminate after 2 off-track excursions.
+  off-track = slow cruise, a pure TIME penalty (no elimination; TENUTA stat
+  raises the off-track cruise speed). Drift = damped-spring yaw + grip falloff.
 - **Finish**: graceful ~1.5s eased power-slide to a **staggered park spot just past the
   finish line, inside the track** (not a hard stop).
 - Car **setup** before drawing: 6-point budget across Grip/Speed/Brake/Accel/Offroad

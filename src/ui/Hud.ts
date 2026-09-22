@@ -102,18 +102,14 @@ export class Hud {
       const row = this.rows[i];
       if (!row) return;
       const c = entry.car;
-      const status = c.eliminated
-        ? 'OUT'
-        : c.finished
-          ? c.finishTime.toFixed(2) + 's'
-          : `giro ${c.displayLap(LAPS)}`;
+      const status = c.finished ? c.finishTime.toFixed(2) + 's' : `giro ${c.displayLap(LAPS)}`;
       row.pos.setText(`${entry.position}`);
       row.label.setText(c.label);
       row.status.setText(status);
-      row.dot.setFillStyle(c.eliminated ? COLORS.textDim : c.color);
-      row.pos.setColor(hex(c.eliminated ? COLORS.textDim : c.color));
-      row.status.setColor(hex(c.eliminated ? COLORS.accent : COLORS.textDim));
-      row.label.setAlpha(c.eliminated ? 0.5 : 1);
+      row.dot.setFillStyle(c.color);
+      row.pos.setColor(hex(c.color));
+      row.status.setColor(hex(COLORS.textDim));
+      row.label.setAlpha(1);
     });
   }
 }

@@ -62,13 +62,13 @@ export interface CarStats {
   brake: number;
   maxLatAccel: number;
   slideGain: number;
-  eliminateAfterOffRuns: number;
+  /** Off-track cruise band (px/s) — scaled by the TENUTA/offroad stat. */
+  offTrackMaxSpeed: number;
+  offTrackMinSpeed: number;
   // Unscaled values copied from CAR so CarSim has one source of truth.
   slideEase: number;
   maxSlide: number;
   renderSmooth: number;
-  offTrackGrip: number;
-  minOnGapPx: number;
 }
 
 /**

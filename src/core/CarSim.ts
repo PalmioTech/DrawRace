@@ -55,13 +55,7 @@ export class Car {
   private finishSign = 1;
   private finishProgress = 0;
 
-  /** Eliminated after too many off-track excursions. */
-  eliminated = false;
-  /** Count of distinct off-track excursions. */
-  private offRuns = 0;
   private wasOff = false;
-  /** On-track distance accumulated since the last excursion ended. */
-  private onDist = 0;
 
   // --- centerline progress (for ranking + lap display) ---
   private centerLap = 0;
@@ -133,37 +127,22 @@ export class Car {
     const curvAbs = Math.abs(curv);
     const cornerMax = Math.sqrt(st.maxLatAccel / Math.max(curvAbs, 1e-5));
 
-    // Off-track surface penalty + excursion counting, with HYSTERESIS: the car
-    // goes "off" when it crosses the border, but only re-arms (can count a new
-    // excursion) after it returns WELL inside the track. This stops a single
-    // swerve — which wiggles across the border a few times — from counting as
-    // several. A min on-track distance further debounces.
-    // Use the clean PATH point (not the slide-distorted render position) so a
-    // single smooth swerve is one excursion, not several.
+    // Off-track surface detection with HYSTERESIS: "off" when the clean PATH
+    // point crosses the border, back "on" only WELL inside — so a swerve that
+    // wiggles across the edge doesn't flicker the state. Going off is purely a
+    // TIME penalty (slow cruise): there is no elimination.
     const dCenter = track.project(p).dist;
     const half = track.halfWidth;
     if (!this.wasOff) {
-      this.onDist += this.speed * dt;
-      if (dCenter > half) {
-        if (this.onDist >= st.minOnGapPx) this.offRuns++;
-        this.wasOff = true;
-        this.onDist = 0;
-      }
+      if (dCenter > half) this.wasOff = true;
     } else if (dCenter < half * 0.6) {
-      this.wasOff = false; // back well inside → ready to count the next one
+      this.wasOff = false;
     }
     this.offTrack = this.wasOff;
-    if (this.offRuns >= st.eliminateAfterOffRuns) {
-      // Too many off-track runs → out of the race.
-      this.eliminated = true;
-      this.finished = true;
-      this.speed = 0;
-      return;
-    }
     // Effective target this tick. On track: capped by corner grip. Off track:
     // capped to a slow cruise (grass) — slow but never stopped/blocked.
     const effTarget = this.offTrack
-      ? Math.min(target, CAR.offTrackMaxSpeed)
+      ? Math.min(target, st.offTrackMaxSpeed)
       : Math.min(target, cornerMax);
 
     // Drift only when BOTH the steering is sharp AND the speed is well over the
@@ -199,7 +178,7 @@ export class Car {
       const brake = this.offTrack ? CAR.offTrackBrake : st.brake * (this.sliding ? 1.9 : 1);
       this.speed = Math.max(effTarget, this.speed - brake * dt);
     }
-    this.speed = Math.max(this.offTrack ? CAR.offTrackMinSpeed : st.minSpeed, this.speed);
+    this.speed = Math.max(this.offTrack ? st.offTrackMinSpeed : st.minSpeed, this.speed);
 
     // Advance along the trajectory.
     this.s += this.speed * dt;
