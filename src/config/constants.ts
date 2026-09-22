@@ -95,8 +95,10 @@ export const CAR = {
   /** How fast the slide returns to the line when recovering (eased, not snapped,
    * so it doesn't jerk when the drift ends). */
   slideRecover: 9,
-  /** Max lateral slide offset (px) — big overcooks can drift right off the track. */
-  maxSlide: 50,
+  /** Max lateral slide offset (px) — big overcooks can drift right off the track.
+   * (Headroom for the DRIFT grip-falloff curve; off-track counting uses the
+   * clean path point, so a wide slide is visual, not an excursion.) */
+  maxSlide: 60,
   /** Max yaw angle (rad) the car rotates while fully sliding (drift look). */
   driftMaxAngle: 0.45,
   /** Finish power-slide duration (s) and lateral arc (px) — the pretty ending. */
@@ -118,6 +120,32 @@ export const CAR = {
   minOnGapPx: 70,
   /** Visual radius of a car. */
   radius: 13,
+} as const;
+
+/**
+ * Drift feel (inspired by Unity WheelCollider behavior: friction-curve grip
+ * falloff + a chassis that overshoots and countersteers). The car still follows
+ * its drawn trajectory — this only shapes the lateral slide and the yaw.
+ */
+export const DRIFT = {
+  /** Yaw spring stiffness (rad/s² per rad of error). Higher = snappier kick. */
+  yawSpring: 90,
+  /** Yaw damping. Underdamped vs the spring → visible overshoot + one
+   * countersteer swing on recovery (ζ ≈ 0.47). */
+  yawDamping: 9,
+  /** Over-speed (px/s) where tire grip peaks (friction-curve extremum).
+   * Beyond it grip falls off: longer, wider slides. */
+  extremumExcess: 110,
+  /** Extra slide gain at full grip falloff (fraction). */
+  gripFalloff: 0.45,
+  /** How much slower the slide recovers at full falloff (fraction). */
+  recoverPenalty: 0.8,
+  /** Skidmarks: rear-axle offset behind car center, half track width (px). */
+  skidRearOffset: 18,
+  skidHalfTrack: 9,
+  /** Skidmark stamp alpha + radius (px). */
+  skidAlpha: 0.22,
+  skidWidth: 4.5,
 } as const;
 
 /** Pre-race car setup: point budget + max level per stat. */

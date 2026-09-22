@@ -9,7 +9,7 @@
  */
 import type { Trajectory, Vec2, RacerKind, CarStats } from './types';
 import type { Track } from './Track';
-import { CAR, LAPS } from '../config/constants';
+import { CAR, DRIFT, LAPS } from '../config/constants';
 import { perp, normalize, sub, add, scale, segmentsIntersect } from './Geometry';
 
 export class Car {
@@ -29,6 +29,11 @@ export class Car {
   slide = 0;
   /** Stable direction (±1) the slide pushes toward (outside of the corner). */
   private slideSign = 1;
+  /** Drift yaw as a damped spring (rad + rad/s): the chassis overshoots the
+   * slip target and countersteers once on recovery, instead of easing
+   * linearly — the Unity-WheelCollider-like kick. */
+  private yaw = 0;
+  private yawVel = 0;
 
   /** Render position (centerline-of-path + slide). */
   pos: Vec2;
@@ -176,10 +181,14 @@ export class Car {
     const overGate = Math.max(0, Math.min(1, (excess - overMargin) / overMargin));
     const drift = this.offTrack ? 0 : cornerGate * overGate;
     this.sliding = drift > 0.12;
-    const slideTarget = Math.min(st.maxSlide, excess * st.slideGain) * drift;
-    // Build up gradually, but recover (return to the line) quickly so the car
-    // straightens out as soon as the corner ends.
-    const rate = slideTarget >= this.slide ? st.slideEase : CAR.slideRecover;
+    // Friction-curve grip falloff: past the extremum over-speed the tires give
+    // up progressively — wider slides that recover slower (longer drifts).
+    const overFrac = Math.min(1, Math.max(0, excess - DRIFT.extremumExcess) / DRIFT.extremumExcess);
+    const slideTarget =
+      Math.min(st.maxSlide, excess * st.slideGain * (1 + DRIFT.gripFalloff * overFrac)) * drift;
+    // Build up gradually; recovery slows down the harder the tires were let go.
+    const recover = CAR.slideRecover / (1 + DRIFT.recoverPenalty * overFrac);
+    const rate = slideTarget >= this.slide ? st.slideEase : recover;
     this.slide += (slideTarget - this.slide) * Math.min(1, rate * dt);
 
     // Accelerate / brake toward the effective target.
@@ -203,12 +212,15 @@ export class Car {
     // Low-pass the rendered position so any residual noise can't snap the car.
     this.pos = add(this.pos, scale(sub(wanted, this.pos), st.renderSmooth));
 
-    // Drift yaw: while sliding, rotate the car's heading off the path tangent so
-    // it visibly DRIFTS (nose kicked toward the corner) instead of just being
-    // shifted sideways. Angle scales with how much it's sliding.
-    const driftAngle = (this.slide / st.maxSlide) * CAR.driftMaxAngle * this.slideSign;
-    const ca = Math.cos(driftAngle);
-    const sa = Math.sin(driftAngle);
+    // Drift yaw: damped spring toward the slip target. Underdamped → the nose
+    // kicks PAST the target (rear sweeps wide), and on corner exit it swings
+    // back through neutral once (countersteer) before settling.
+    const yawTarget = (this.slide / st.maxSlide) * CAR.driftMaxAngle * this.slideSign;
+    const yawAcc = DRIFT.yawSpring * (yawTarget - this.yaw) - DRIFT.yawDamping * this.yawVel;
+    this.yawVel += yawAcc * dt;
+    this.yaw += this.yawVel * dt;
+    const ca = Math.cos(this.yaw);
+    const sa = Math.sin(this.yaw);
     this.dir = { x: tangent.x * ca - tangent.y * sa, y: tangent.x * sa + tangent.y * ca };
 
     // Update centerline progress for ranking / lap display.

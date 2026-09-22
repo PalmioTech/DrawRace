@@ -4,7 +4,7 @@
  * the cars replay their drawn (or AI) trajectories for all LAPS laps.
  */
 import Phaser from 'phaser';
-import { COLORS, DESIGN, LAPS, CAR_TEXTURES, CAR_SPRITE_LEN } from '../config/constants';
+import { COLORS, DESIGN, DRIFT, LAPS, CAR_TEXTURES, CAR_SPRITE_LEN } from '../config/constants';
 import type { RaceConfig, Vec2 } from '../core/types';
 import type { CircuitLayout } from '../core/CircuitTrack';
 import type { Car } from '../core/CarSim';
@@ -27,6 +27,9 @@ export class RaceScene extends Phaser.Scene {
   private engine!: RaceEngine;
   private hud!: Hud;
   private carsG!: Phaser.GameObjects.Graphics;
+  /** Persistent tire-mark layer: slide stamps accumulate here all race. */
+  private skidRT!: Phaser.GameObjects.RenderTexture;
+  private skidG!: Phaser.GameObjects.Graphics;
   private sprites = new Map<number, Phaser.GameObjects.Image>();
   private trails = new Map<number, Vec2[]>();
   private eliminatedShown = new Set<number>();
@@ -60,6 +63,10 @@ export class RaceScene extends Phaser.Scene {
     this.sprites.clear();
 
     drawTrack(this, layout);
+
+    // Skidmarks live between the track (-50) and trails/cars (20/25).
+    this.skidRT = this.add.renderTexture(0, 0, DESIGN.width, DESIGN.height).setOrigin(0, 0).setDepth(15);
+    this.skidG = this.make.graphics({ x: 0, y: 0 }, false);
 
     this.carsG = this.add.graphics().setDepth(20);
     cars.forEach((c) => {
@@ -186,6 +193,19 @@ export class RaceScene extends Phaser.Scene {
       if (car.sliding || car.offTrack) {
         g.fillStyle(car.offTrack ? COLORS.accent : 0xffffff, 0.4);
         g.fillCircle(px, py, CAR_SPRITE_LEN * 0.5 + 4);
+      }
+
+      // Tire marks: while sliding, stamp the two rear wheels into the
+      // persistent layer (rear axle = behind the heading, wheels at ±track/2).
+      if (car.sliding && this.started) {
+        const rx = px - dx * DRIFT.skidRearOffset;
+        const ry = py - dy * DRIFT.skidRearOffset;
+        const sg = this.skidG;
+        sg.clear();
+        sg.fillStyle(0x14161c, DRIFT.skidAlpha);
+        sg.fillCircle(rx - dy * DRIFT.skidHalfTrack, ry + dx * DRIFT.skidHalfTrack, DRIFT.skidWidth);
+        sg.fillCircle(rx + dy * DRIFT.skidHalfTrack, ry - dx * DRIFT.skidHalfTrack, DRIFT.skidWidth);
+        this.skidRT.draw(sg);
       }
 
       // Car sprite: follow position, rotate to heading (sprite art faces up).
